@@ -1,0 +1,60 @@
+# Secrets & Environment Variables
+.env
+.env.*
+*.env
+!*.env.example
+
+# Databases & Local Data Stores
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+data/*.db
+backend/data/*.db
+
+# Python & Testing Caches
+.venv/
+venv/
+ENV/
+backend/.packages/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+**/.pytest_cache/
+pytest-cache-files-*/
+**/pytest-cache-files-*/
+.ruff_cache/
+**/.ruff_cache/
+
+# Node & Frontend Build Artifacts
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+*.tsbuildinfo
+**/*.tsbuildinfo
+.npm/
+.pnpm-store/
+
+# Temporary & Log Files
+tmp/
+temp/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# IDE & Editor Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.gemini/
+.agents/
+
+# Local Scratch Dumps
+# Finalize research agent architecture.md
+
