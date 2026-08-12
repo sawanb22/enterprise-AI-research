@@ -33,6 +33,21 @@ class Base(DeclarativeBase):
     pass
 
 
+def init_db():
+    Base.metadata.create_all(bind=engine)
+    if settings.database_url.startswith("sqlite"):
+        with engine.connect() as conn:
+            try:
+                # Check if reasoning column exists on conclusions
+                result = conn.exec_driver_sql("PRAGMA table_info(conclusions)")
+                columns = [row[1] for row in result.fetchall()]
+                if columns and "reasoning" not in columns:
+                    conn.exec_driver_sql("ALTER TABLE conclusions ADD COLUMN reasoning TEXT DEFAULT ''")
+                    conn.commit()
+            except Exception:
+                pass
+
+
 def get_db():
     db = SessionLocal()
     try:

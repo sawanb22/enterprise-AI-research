@@ -79,7 +79,8 @@ class ConclusionOut(BaseModel):
     id: str
     statement: str
     confidence: str
-    limitations: str
+    reasoning: str = ""
+    limitations: str = ""
     claim_count: int
 
 

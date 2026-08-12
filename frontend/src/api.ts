@@ -20,6 +20,7 @@ export interface Conclusion {
   id: string;
   statement: string;
   confidence: string;
+  reasoning?: string;
   limitations: string;
   claim_count: number;
 }
@@ -95,8 +96,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  health: () => request<{ status: string; providers_configured: Record<string, boolean> }>("/health"),
+  health: () => request<{ status: string; ai_provider?: string; model?: string; providers_configured: Record<string, boolean> }>("/health"),
   projects: () => request<Project[]>("/research-projects"),
+  projectRuns: (projectId: string) => request<Run[]>(`/research-projects/${projectId}/runs`),
   createProject: (question: string) => request<{ project_id: string; run_id: string; status: RunStatus }>("/research-projects", { method: "POST", body: JSON.stringify({ question }) }),
   run: (id: string) => request<RunDetail>(`/research-runs/${id}`),
   events: (id: string) => request<RunEvent[]>(`/research-runs/${id}/events`),

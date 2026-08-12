@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from app import services
 from app.database import Base
 from app.models import Claim, Conclusion, ConclusionClaim, EvidenceAssessment, ResearchRun, SourceSnapshot
-from app.providers import SearchResult
+from app.search import SearchResult
 
 
 class FakeLLM:
@@ -82,7 +82,7 @@ class RateLimitedSynthesisLLM(FakeLLM):
     def synthesise(self, *args):
         type(self).synthesise_calls += 1
         if not type(self).allow_synthesis:
-            raise services.ProviderError("Groq request failed (429): rate limit exceeded")
+            raise services.ProviderError("Bedrock request failed (429): rate limit exceeded")
         return super().synthesise(*args)
 
 
@@ -91,7 +91,8 @@ def test_full_workflow_persists_traceable_conclusion(tmp_path, monkeypatch):
     Base.metadata.create_all(engine)
     local_session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     monkeypatch.setattr(services, "SessionLocal", local_session)
-    monkeypatch.setattr(services, "GroqProvider", FakeLLM)
+    monkeypatch.setattr(services, "BedrockProvider", FakeLLM)
+    monkeypatch.setattr(services, "OpenAICompatibleProvider", FakeLLM)
     monkeypatch.setattr(services, "TavilyProvider", FakeSearch)
 
     db = local_session()
@@ -119,7 +120,8 @@ def _run_with_fakes(tmp_path, monkeypatch, llm_type=FakeLLM, search_type=FakeSea
     Base.metadata.create_all(engine)
     local_session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     monkeypatch.setattr(services, "SessionLocal", local_session)
-    monkeypatch.setattr(services, "GroqProvider", llm_type)
+    monkeypatch.setattr(services, "BedrockProvider", llm_type)
+    monkeypatch.setattr(services, "OpenAICompatibleProvider", llm_type)
     monkeypatch.setattr(services, "TavilyProvider", search_type)
     db = local_session()
     _, run = services.create_project_and_run(db, "How is AI transforming retail operations?", "Retail AI")

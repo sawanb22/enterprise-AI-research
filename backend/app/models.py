@@ -30,9 +30,10 @@ class ResearchRun(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     project_id: Mapped[str] = mapped_column(ForeignKey("research_projects.id", ondelete="CASCADE"), index=True)
     status: Mapped[str] = mapped_column(String(32), default="queued", index=True)
-    provider_name: Mapped[str] = mapped_column(String(80), default="groq")
+    provider_name: Mapped[str] = mapped_column(String(80), default="bedrock")
     model_name: Mapped[str] = mapped_column(String(160))
     limits_json: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -122,6 +123,7 @@ class Conclusion(Base):
     run_id: Mapped[str] = mapped_column(ForeignKey("research_runs.id", ondelete="CASCADE"), index=True)
     statement: Mapped[str] = mapped_column(Text)
     confidence: Mapped[str] = mapped_column(String(16))
+    reasoning: Mapped[str] = mapped_column(Text, default="")
     limitations: Mapped[str] = mapped_column(Text, default="")
 
 

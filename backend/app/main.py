@@ -7,7 +7,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from .config import get_settings
-from .database import Base, engine, get_db
+from .database import Base, engine, get_db, init_db
 from .models import Claim, Conclusion, ConclusionClaim, EvidenceAssessment, PlanItem, ResearchProject, ResearchRun, RunEvent, Source, SourceSnapshot
 from .schemas import AssessmentOut, ClaimOut, ConclusionOut, ProjectCreate, ProjectCreated, ProjectOut, RunDetail, RunEventOut, RunOut, SourceOut, TraceOut
 from .services import create_project_and_run, create_retry_run, get_run_counts, run_research
@@ -15,7 +15,7 @@ from .services import create_project_and_run, create_retry_run, get_run_counts, 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    init_db()
     yield
 
 
@@ -74,7 +74,8 @@ def conclusion_out(db: Session, conclusion: Conclusion) -> ConclusionOut:
         id=conclusion.id,
         statement=conclusion.statement,
         confidence=conclusion.confidence,
-        limitations=conclusion.limitations,
+        reasoning=getattr(conclusion, "reasoning", "") or "",
+        limitations=conclusion.limitations or "",
         claim_count=count,
     )
 
@@ -100,7 +101,14 @@ def run_out(db: Session, run: ResearchRun) -> RunOut:
 def health():
     return {
         "status": "ok",
-        "providers_configured": {"groq": bool(settings.groq_api_key), "tavily": bool(settings.tavily_api_key)},
+        "ai_provider": settings.effective_provider,
+        "model": settings.effective_model_name,
+        "providers_configured": {
+            "ai": settings.is_ai_configured,
+            "bedrock": bool(settings.effective_provider == "bedrock" and (settings.effective_bedrock_bearer_token or settings.aws_access_key_id or settings.aws_region)),
+            "openai_compatible": bool(settings.effective_provider == "openai_compatible" and settings.effective_api_key),
+            "tavily": bool(settings.tavily_api_key),
+        },
     }
 
 
@@ -128,6 +136,21 @@ def get_project(project_id: str, db: Session = Depends(get_db)):
         raise HTTPException(404, "Project not found")
     latest = db.scalar(select(ResearchRun).where(ResearchRun.project_id == project.id).order_by(desc(ResearchRun.started_at), desc(ResearchRun.id)))
     return ProjectOut(id=project.id, title=project.title, original_question=project.original_question, created_at=project.created_at, latest_run=run_out(db, latest) if latest else None)
+
+
+@app.get("/api/v1/research-projects/{project_id}/runs", response_model=list[RunOut])
+def list_project_runs(project_id: str, db: Session = Depends(get_db)):
+    project = db.get(ResearchProject, project_id)
+    if not project:
+        raise HTTPException(404, "Project not found")
+    runs = list(
+        db.scalars(
+            select(ResearchRun)
+            .where(ResearchRun.project_id == project_id)
+            .order_by(desc(ResearchRun.started_at), desc(ResearchRun.id))
+        ).all()
+    )
+    return [run_out(db, run) for run in runs]
 
 
 @app.get("/api/v1/research-runs/{run_id}", response_model=RunDetail)

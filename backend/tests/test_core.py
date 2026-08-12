@@ -78,3 +78,40 @@ def test_project_run_and_evidence_records_persist(tmp_path):
     assert stored_claim.snapshot_id == snapshot.id
     assert stored_link.claim_id == stored_claim.id
     session.close()
+
+
+def test_list_project_runs_endpoint(tmp_path):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.database import get_db
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'api_test.db'}")
+    Base.metadata.create_all(engine)
+    TestingSession = sessionmaker(bind=engine)
+
+    def override_get_db():
+        db = TestingSession()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    db = TestingSession()
+    project, run1 = create_project_and_run(db, "Question for project runs endpoint", "Project Test")
+    retry = create_retry_run(db, run1)
+    project_id = project.id
+    run1_id = run1.id
+    retry_id = retry.id
+    db.close()
+
+    client = TestClient(app)
+    resp = client.get(f"/api/v1/research-projects/{project_id}/runs")
+    assert resp.status_code == 200
+    runs = resp.json()
+    assert len(runs) == 2
+    assert {r["id"] for r in runs} == {run1_id, retry_id}
+
+    app.dependency_overrides.clear()
+

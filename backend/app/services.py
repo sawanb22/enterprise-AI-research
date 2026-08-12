@@ -22,7 +22,8 @@ from .models import (
     Source,
     SourceSnapshot,
 )
-from .providers import GroqProvider, ProviderError, SearchResult, TavilyProvider
+from .ai import BaseLLMProvider, BedrockProvider, OpenAICompatibleProvider, ProviderError, get_llm_provider
+from .search import SearchResult, TavilyProvider
 
 
 settings = get_settings()
@@ -77,8 +78,8 @@ def create_project_and_run(db: Session, question: str, title: str | None) -> tup
     run = ResearchRun(
         project_id=project.id,
         status="queued",
-        provider_name="groq",
-        model_name=settings.groq_model,
+        provider_name=settings.effective_provider,
+        model_name=settings.effective_model_name,
         limits_json=json.dumps(
             {
                 "max_queries": settings.max_queries,
@@ -191,9 +192,29 @@ def _valid_excerpt(source_text: str, excerpt: str) -> tuple[str, int, int] | Non
     if not 20 <= len(excerpt) <= 500:
         return None
     start = source_text.find(excerpt)
-    if start < 0:
-        return None
-    return excerpt, start, start + len(excerpt)
+    if start >= 0:
+        return excerpt, start, start + len(excerpt)
+
+    # Fallback 1: Quote normalization (“” ‘’ -> "" '')
+    def _norm_quotes(t: str) -> str:
+        return t.replace("“", "\"").replace("”", "\"").replace("‘", "'").replace("’", "'")
+
+    norm_source = _norm_quotes(source_text)
+    norm_excerpt = _norm_quotes(excerpt)
+    start = norm_source.find(norm_excerpt)
+    if start >= 0:
+        return source_text[start : start + len(norm_excerpt)], start, start + len(norm_excerpt)
+
+    # Fallback 2: Whitespace tolerance (matching across variable whitespace)
+    words = [re.escape(_norm_quotes(w)) for w in norm_excerpt.split() if w]
+    if len(words) >= 3:
+        pattern = r"\s+".join(words)
+        match = re.search(pattern, norm_source, re.IGNORECASE)
+        if match:
+            s, e = match.span()
+            return source_text[s:e], s, e
+
+    return None
 
 
 def _store_claims(db: Session, run_id: str, snapshot: SourceSnapshot, drafts: list[dict], remaining: int) -> int:
@@ -240,9 +261,17 @@ def _select_comparison_pairs(claims: list[Claim], max_pairs: int) -> list[tuple[
     for group in groups.values():
         for index, left in enumerate(group):
             for right in group[index + 1 :]:
-                pairs.append((left, right))
-                if len(pairs) >= max_pairs:
-                    return pairs
+                if left.snapshot_id != right.snapshot_id:
+                    pairs.append((left, right))
+                    if len(pairs) >= max_pairs:
+                        return pairs
+    if len(pairs) < max_pairs:
+        for index, left in enumerate(claims):
+            for right in claims[index + 1 :]:
+                if left.snapshot_id != right.snapshot_id and (left, right) not in pairs and (right, left) not in pairs:
+                    pairs.append((left, right))
+                    if len(pairs) >= max_pairs:
+                        return pairs
     return pairs
 
 
@@ -392,7 +421,7 @@ def run_research(run_id: str) -> None:
         run.error_summary = None
         db.commit()
 
-        llm = GroqProvider(settings)
+        llm = BedrockProvider(settings) if settings.effective_provider == "bedrock" else OpenAICompatibleProvider(settings)
         search = TavilyProvider(settings)
         fetch_errors: list[str] = []
         plan = _stored_plan(db, run_id)
@@ -558,6 +587,7 @@ def run_research(run_id: str) -> None:
                 run_id=run_id,
                 statement=statement,
                 confidence=confidence,
+                reasoning=str(draft.get("reasoning", "")).strip()[:3000],
                 limitations=str(draft.get("limitations", "")).strip()[:2000],
             )
             db.add(conclusion)

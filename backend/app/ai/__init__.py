@@ -1,22 +1,19 @@
-"""Backward compatibility re-exports for modular app.ai and app.search packages."""
-
-from .ai import (
+from .base import BaseLLMProvider
+from .bedrock import BedrockProvider
+from .contracts import (
     AssessmentResponse,
-    BaseLLMProvider,
-    BedrockProvider,
     ClaimDraft,
     ClaimResponse,
     ConclusionDraft,
     ConclusionResponse,
-    OpenAICompatibleProvider,
     PlanResponse,
     ProviderConfigurationError,
     ProviderError,
     SearchResult,
-    extract_json_payload,
-    get_llm_provider,
 )
-from .search import TavilyProvider
+from .factory import get_llm_provider
+from .json_extractor import extract_json_payload
+from .openai_compatible import OpenAICompatibleProvider
 
 __all__ = [
     "BaseLLMProvider",
@@ -33,5 +30,4 @@ __all__ = [
     "AssessmentResponse",
     "ConclusionDraft",
     "ConclusionResponse",
-    "TavilyProvider",
 ]
