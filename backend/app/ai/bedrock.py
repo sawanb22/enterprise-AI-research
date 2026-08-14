@@ -31,9 +31,6 @@ class BedrockProvider(BaseLLMProvider):
             self.base_endpoint = self.endpoint_url.rstrip("/")
         else:
             self.base_endpoint = f"https://bedrock-runtime.{self.region}.amazonaws.com"
-            self.base_endpoint = self.endpoint_url.rstrip("/")
-        else:
-            self.base_endpoint = f"https://bedrock-runtime.{self.region}.amazonaws.com"
 
         self.boto_client = None
         if not self.bearer_token:

@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -133,3 +134,59 @@ class ConclusionClaim(Base):
     conclusion_id: Mapped[str] = mapped_column(ForeignKey("conclusions.id", ondelete="CASCADE"), primary_key=True)
     claim_id: Mapped[str] = mapped_column(ForeignKey("claims.id", ondelete="CASCADE"), primary_key=True)
     role: Mapped[str] = mapped_column(String(24), default="supports")
+
+
+# ============================================================================
+# Enterprise Document RAG Models
+# ============================================================================
+
+class Document(Base):
+    __tablename__ = "documents"
+    __table_args__ = (UniqueConstraint("project_id", "file_hash", name="uq_project_file"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    project_id: Mapped[str] = mapped_column(ForeignKey("research_projects.id", ondelete="CASCADE"), index=True)
+    filename: Mapped[str] = mapped_column(String(500))
+    file_hash: Mapped[str] = mapped_column(String(64), index=True)
+    file_size_bytes: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
+    page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    document_id: Mapped[str] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), index=True)
+    page_number: Mapped[int] = mapped_column(Integer)
+    chunk_index: Mapped[int] = mapped_column(Integer, default=0)
+    raw_text: Mapped[str] = mapped_column(Text)
+    visual_summary: Mapped[str] = mapped_column(Text, default="")
+    combined_context: Mapped[str] = mapped_column(Text)
+    token_count: Mapped[int] = mapped_column(Integer, default=0)
+    embedding = mapped_column(Vector(1024), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class RAGReport(Base):
+    __tablename__ = "rag_reports"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    project_id: Mapped[str] = mapped_column(ForeignKey("research_projects.id", ondelete="CASCADE"), index=True)
+    question: Mapped[str] = mapped_column(Text)
+    report_json: Mapped[str] = mapped_column(Text, default="{}")
+    status: Mapped[str] = mapped_column(String(32), default="generating")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class RAGReportCitation(Base):
+    __tablename__ = "rag_report_citations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    report_id: Mapped[str] = mapped_column(ForeignKey("rag_reports.id", ondelete="CASCADE"), index=True)
+    chunk_id: Mapped[str] = mapped_column(ForeignKey("document_chunks.id", ondelete="CASCADE"), index=True)
+    section_index: Mapped[int] = mapped_column(Integer, default=0)
+    verbatim_quote: Mapped[str] = mapped_column(Text)

@@ -13,6 +13,11 @@
 *.db-shm
 data/*.db
 backend/data/*.db
+data/uploads/
+backend/data/uploads/
+uploads/
+**/data/uploads/
+
 
 # Python & Testing Caches
 .venv/
