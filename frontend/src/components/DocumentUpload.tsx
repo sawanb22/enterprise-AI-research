@@ -3,9 +3,20 @@ import { ChangeEvent, DragEvent, useRef, useState } from "react";
 interface DocumentUploadProps {
   onUpload: (file: File) => Promise<void>;
   disabled?: boolean;
+  totalPages?: number;
+  maxPagesLimit?: number;
+  remainingPages?: number;
 }
 
-export function DocumentUpload({ onUpload, disabled }: DocumentUploadProps) {
+export function DocumentUpload({
+  onUpload,
+  disabled,
+  totalPages = 0,
+  maxPagesLimit = 10,
+  remainingPages = 10,
+}: DocumentUploadProps) {
+  const isQuotaFull = totalPages >= maxPagesLimit || remainingPages <= 0;
+  const isUploadDisabled = disabled || isQuotaFull;
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -48,7 +59,7 @@ export function DocumentUpload({ onUpload, disabled }: DocumentUploadProps) {
   const handleDragOver = (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!disabled && !isUploading) {
+    if (!isUploadDisabled && !isUploading) {
       setIsDragOver(true);
     }
   };
@@ -64,7 +75,7 @@ export function DocumentUpload({ onUpload, disabled }: DocumentUploadProps) {
     e.stopPropagation();
     setIsDragOver(false);
 
-    if (disabled || isUploading) return;
+    if (isUploadDisabled || isUploading) return;
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
@@ -79,19 +90,54 @@ export function DocumentUpload({ onUpload, disabled }: DocumentUploadProps) {
     }
   };
 
+  const quotaPercent = Math.min(100, Math.round((totalPages / maxPagesLimit) * 100));
+
   return (
     <div className="doc-upload-container">
+      {/* Pilot Quota Gauge Header */}
+      <div className="pilot-quota-card" role="region" aria-label="Pilot Ingestion Quota">
+        <div className="pilot-quota-header">
+          <div className="pilot-quota-title">
+            <span className="pilot-badge">PILOT TIER</span>
+            <span className="pilot-quota-label">Document Ingestion Quota</span>
+          </div>
+          <div className="pilot-quota-counter">
+            <span className="pages-used">{totalPages}</span>
+            <span className="pages-sep">/</span>
+            <span className="pages-limit">{maxPagesLimit} pages</span>
+            <span className={`pilot-status-pill ${isQuotaFull ? "limit-reached" : "available"}`}>
+              {isQuotaFull ? "Quota Reached" : `${remainingPages} left`}
+            </span>
+          </div>
+        </div>
+        <div className="pilot-progress-track">
+          <div
+            className={`pilot-progress-bar ${isQuotaFull ? "full" : ""}`}
+            style={{ width: `${quotaPercent}%` }}
+            role="progressbar"
+            aria-valuenow={totalPages}
+            aria-valuemin={0}
+            aria-valuemax={maxPagesLimit}
+          />
+        </div>
+        {isQuotaFull && (
+          <p className="pilot-quota-warning">
+            🔒 Pilot project limit reached ({maxPagesLimit}/{maxPagesLimit} pages). Remove an existing document from the repository to free up ingestion capacity.
+          </p>
+        )}
+      </div>
+
       <div
-        className={`doc-dropzone ${isDragOver ? "drag-over" : ""} ${isUploading ? "uploading" : ""} ${disabled ? "disabled" : ""}`}
+        className={`doc-dropzone ${isDragOver ? "drag-over" : ""} ${isUploading ? "uploading" : ""} ${isUploadDisabled ? "disabled" : ""}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={() => !disabled && !isUploading && fileInputRef.current?.click()}
+        onClick={() => !isUploadDisabled && !isUploading && fileInputRef.current?.click()}
         role="button"
-        tabIndex={disabled ? -1 : 0}
+        tabIndex={isUploadDisabled ? -1 : 0}
         aria-label="Upload PDF Document Dropzone"
         onKeyDown={(e) => {
-          if ((e.key === "Enter" || e.key === " ") && !disabled && !isUploading) {
+          if ((e.key === "Enter" || e.key === " ") && !isUploadDisabled && !isUploading) {
             e.preventDefault();
             fileInputRef.current?.click();
           }
@@ -103,7 +149,7 @@ export function DocumentUpload({ onUpload, disabled }: DocumentUploadProps) {
           accept=".pdf,application/pdf"
           onChange={handleFileChange}
           style={{ display: "none" }}
-          disabled={disabled || isUploading}
+          disabled={isUploadDisabled || isUploading}
         />
 
         <div className="dropzone-ambient-glow" aria-hidden="true" />
@@ -129,10 +175,18 @@ export function DocumentUpload({ onUpload, disabled }: DocumentUploadProps) {
               </div>
               <div className="upload-meta">
                 <p className="upload-title">
-                  <span className="highlight-action">Click to upload</span> or drag PDF here
+                  {isQuotaFull ? (
+                    <span className="quota-full-title">Project page quota full</span>
+                  ) : (
+                    <>
+                      <span className="highlight-action">Click to upload</span> or drag PDF here
+                    </>
+                  )}
                 </p>
                 <p className="upload-subtext">
-                  Supports native PDF tables, diagrams & text (up to 50 MB per file)
+                  {isQuotaFull
+                    ? "Delete indexed documents below to reclaim page allowance."
+                    : `Max 10 pages per document • ${remainingPages} page allowance remaining in this project`}
                 </p>
               </div>
               <div className="vault-tag" aria-hidden="true">

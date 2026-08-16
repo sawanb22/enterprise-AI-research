@@ -5,13 +5,12 @@ from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parent
 WORKSPACE_DIR = BACKEND_DIR.parent
-LOCAL_PACKAGES = BACKEND_DIR / ".packages"
 
-if LOCAL_PACKAGES.exists():
-    sys.path.insert(0, str(LOCAL_PACKAGES))
-sys.path.insert(0, str(BACKEND_DIR))
+# Ensure backend directory is importable
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
-import uvicorn  # noqa: E402
+import uvicorn
 
 
 if __name__ == "__main__":

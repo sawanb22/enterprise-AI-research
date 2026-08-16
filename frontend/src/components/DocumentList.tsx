@@ -4,6 +4,9 @@ import { formatDateTime } from "../utils/textUtils";
 interface DocumentListProps {
   documents: DocumentItem[];
   loading?: boolean;
+  totalPages?: number;
+  maxPagesLimit?: number;
+  remainingPages?: number;
   onDelete?: (documentId: string) => Promise<void>;
   onRefresh?: () => void;
 }
@@ -19,6 +22,9 @@ function formatBytes(bytes: number): string {
 export function DocumentList({
   documents,
   loading = false,
+  totalPages = 0,
+  maxPagesLimit = 10,
+  remainingPages = 10,
   onDelete,
   onRefresh,
 }: DocumentListProps) {
@@ -28,7 +34,12 @@ export function DocumentList({
         <div className="doc-list-title-row">
           <div className="doc-list-title-box">
             <span className="section-eyebrow">INDEXED CORPUS</span>
-            <h3>Document Repository ({documents.length})</h3>
+            <div className="doc-list-title-with-badge">
+              <h3>Document Repository ({documents.length})</h3>
+              <span className={`pilot-list-quota-badge ${totalPages >= maxPagesLimit ? "full" : ""}`}>
+                {totalPages}/{maxPagesLimit} pages
+              </span>
+            </div>
           </div>
           {onRefresh && (
             <button

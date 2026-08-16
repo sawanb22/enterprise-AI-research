@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Source } from "../api";
-import { formatDateTime, pretty, sanitizeText } from "../utils/textUtils";
+import { formatDateTime, pretty, sanitizeText, sanitizeUrl } from "../utils/textUtils";
 
 interface SourcesCardProps {
   sources: Source[];
@@ -135,7 +135,7 @@ export function SourcesCard({ sources }: SourcesCardProps) {
           return (
             <a
               className={`source ${isFailed ? "failed-source" : ""}`}
-              href={source.canonical_url}
+              href={sanitizeUrl(source.canonical_url)}
               key={source.id}
               target="_blank"
               rel="noreferrer"

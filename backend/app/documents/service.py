@@ -3,7 +3,8 @@ import logging
 from pathlib import Path
 from typing import BinaryIO
 
-from sqlalchemy import delete, select
+import pymupdf
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from ..config import Settings, get_settings
@@ -68,11 +69,36 @@ class DocumentService:
                 f"File exceeds maximum allowed size of {self.settings.max_upload_size_mb} MB"
             )
 
-        # 3. Validate PDF header
+        # 3. Validate PDF format and inspect page count
         if not file_bytes.startswith(b"%PDF"):
             raise DocumentServiceError("Invalid file format. Only PDF files are supported.")
 
-        # 4. SHA-256 Deduplication check
+        try:
+            pdf_doc = pymupdf.open(stream=file_bytes, filetype="pdf")
+            incoming_page_count = len(pdf_doc)
+            pdf_doc.close()
+        except Exception as e:
+            raise DocumentServiceError(f"Corrupted or unreadable PDF document: {e}")
+
+        if incoming_page_count == 0:
+            raise DocumentServiceError("The uploaded PDF document contains 0 pages.")
+
+        # 4. Enforce Single Document Pilot Limit
+        if incoming_page_count > self.settings.max_pages_per_doc:
+            raise DocumentServiceError(
+                f"Pilot quota exceeded: A single document cannot exceed {self.settings.max_pages_per_doc} pages. "
+                f"Uploaded document '{filename}' has {incoming_page_count} pages."
+            )
+
+        # 5. Calculate Current Project Page Usage
+        current_project_pages = db.scalar(
+            select(func.coalesce(func.sum(Document.page_count), 0)).where(
+                Document.project_id == project_id,
+                Document.status.in_(("ready", "processing", "pending")),
+            )
+        ) or 0
+
+        # 6. SHA-256 Deduplication check
         file_hash = self.compute_file_hash(file_bytes)
         existing = db.scalar(
             select(Document).where(
@@ -86,8 +112,14 @@ class DocumentService:
             if existing.status in ("ready", "processing", "pending"):
                 return existing, True
             else:
-                # Retry failed upload
+                # Retrying failed upload
+                if current_project_pages + incoming_page_count > self.settings.max_pages_per_project:
+                    raise DocumentServiceError(
+                        f"Pilot project quota exceeded: This project currently has {current_project_pages}/{self.settings.max_pages_per_project} pages. "
+                        f"Adding '{filename}' ({incoming_page_count} pages) would exceed the maximum pilot limit of {self.settings.max_pages_per_project} pages."
+                    )
                 existing.status = "pending"
+                existing.page_count = incoming_page_count
                 existing.error_message = None
                 db.commit()
                 db.refresh(existing)
@@ -96,13 +128,21 @@ class DocumentService:
                 file_path.write_bytes(file_bytes)
                 return existing, False
 
-        # 5. Create new Document record
+        # Enforce Cumulative Project Pilot Limit
+        if current_project_pages + incoming_page_count > self.settings.max_pages_per_project:
+            raise DocumentServiceError(
+                f"Pilot project quota exceeded: This project currently has {current_project_pages}/{self.settings.max_pages_per_project} pages. "
+                f"Adding '{filename}' ({incoming_page_count} pages) would exceed the maximum pilot limit of {self.settings.max_pages_per_project} pages."
+            )
+
+        # 7. Create new Document record with page count
         doc = Document(
             project_id=project_id,
             filename=filename,
             file_hash=file_hash,
             file_size_bytes=len(file_bytes),
             status="pending",
+            page_count=incoming_page_count,
         )
         db.add(doc)
         db.commit()
@@ -113,6 +153,21 @@ class DocumentService:
         file_path.write_bytes(file_bytes)
 
         return doc, False
+
+    def get_project_quota_stats(self, project_id: str, db: Session) -> dict:
+        """Compute current pilot quota statistics for a research project."""
+        total_pages = db.scalar(
+            select(func.coalesce(func.sum(Document.page_count), 0)).where(
+                Document.project_id == project_id,
+                Document.status.in_(("ready", "processing", "pending")),
+            )
+        ) or 0
+        max_limit = self.settings.max_pages_per_project
+        return {
+            "total_pages": int(total_pages),
+            "max_pages_limit": int(max_limit),
+            "remaining_pages": max(0, int(max_limit - total_pages)),
+        }
 
     def process_document(self, document_id: str, db: Session) -> Document:
         """

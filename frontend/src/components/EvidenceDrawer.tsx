@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Trace } from "../api";
-import { pretty, sanitizeText } from "../utils/textUtils";
+import { pretty, sanitizeText, sanitizeUrl } from "../utils/textUtils";
 
 interface EvidenceDrawerProps {
   trace: Trace;
@@ -114,7 +114,7 @@ export function EvidenceDrawer({ trace, onClose }: EvidenceDrawerProps) {
                 “{sanitizeText(claim.exact_excerpt)}”
               </blockquote>
               <a
-                href={claim.source.canonical_url}
+                href={sanitizeUrl(claim.source.canonical_url)}
                 target="_blank"
                 rel="noreferrer"
                 className="trace-source-link"

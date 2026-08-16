@@ -46,6 +46,9 @@ export function App() {
 
   const {
     documents,
+    totalPages,
+    maxPagesLimit,
+    remainingPages,
     docsLoading,
     report,
     setReport,
@@ -240,6 +243,9 @@ export function App() {
             report={report}
             pastReports={pastReports}
             documents={documents}
+            totalPages={totalPages}
+            maxPagesLimit={maxPagesLimit}
+            remainingPages={remainingPages}
             docsLoading={docsLoading}
             onUploadDoc={uploadDocument}
             onDeleteDoc={deleteDocument}

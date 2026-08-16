@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     ai_base_url: str = "https://api.minimax.chat/v1"
     ai_model: str = "minimax-text-01"
 
+    # Security & API Auth Settings
+    api_auth_key: str | None = None
+    rate_limit_research_per_min: int = 10
+    rate_limit_read_per_min: int = 60
+
     tavily_api_key: str | None = None
     allowed_origins: str = "http://localhost:5173"
     max_queries: int = 3
@@ -54,6 +59,8 @@ class Settings(BaseSettings):
     max_rerank_candidates: int = 50
     max_vision_calls_per_doc: int = 20
     max_upload_size_mb: int = 50
+    max_pages_per_project: int = 10
+    max_pages_per_doc: int = 10
     chunk_target_tokens: int = 800
     chunk_overlap_tokens: int = 200
 

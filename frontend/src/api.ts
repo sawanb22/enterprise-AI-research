@@ -117,6 +117,9 @@ export interface DocumentDetail extends DocumentItem {
 export interface DocumentList {
   documents: DocumentItem[];
   total: number;
+  total_pages?: number;
+  max_pages_limit?: number;
+  remaining_pages?: number;
 }
 
 export interface PageCitation {

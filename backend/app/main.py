@@ -24,6 +24,7 @@ from .models import (
     SourceSnapshot,
     utc_now,
 )
+from .rate_limiter import rate_limit
 from .schemas import AssessmentOut, ClaimOut, ConclusionOut, ProjectCreate, ProjectCreated, ProjectOut, RunDetail, RunEventOut, RunOut, SourceOut, TraceOut
 from .services import create_project_and_run, create_retry_run, get_run_counts, run_research
 
@@ -130,7 +131,12 @@ def health():
     }
 
 
-@app.post("/api/v1/research-projects", response_model=ProjectCreated, status_code=202)
+@app.post(
+    "/api/v1/research-projects",
+    response_model=ProjectCreated,
+    status_code=202,
+    dependencies=[Depends(rate_limit(settings.rate_limit_research_per_min, 60))],
+)
 def create_research_project(payload: ProjectCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     project, run = create_project_and_run(db, payload.question.strip(), payload.title.strip() if payload.title else None)
     background_tasks.add_task(run_research, run.id)
@@ -243,7 +249,12 @@ def get_conclusion_trace(conclusion_id: str, db: Session = Depends(get_db)):
     return TraceOut(conclusion=conclusion_out(db, conclusion), claims=[claim_out(db, claim) for claim in claims if claim], assessments=[assessment_out(item) for item in assessments])
 
 
-@app.post("/api/v1/research-runs/{run_id}/retry", response_model=RunOut, status_code=202)
+@app.post(
+    "/api/v1/research-runs/{run_id}/retry",
+    response_model=RunOut,
+    status_code=202,
+    dependencies=[Depends(rate_limit(settings.rate_limit_research_per_min, 60))],
+)
 def retry_run(run_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     run = db.get(ResearchRun, run_id)
     if not run:

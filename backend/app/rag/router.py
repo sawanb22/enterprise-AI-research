@@ -8,6 +8,7 @@ from ..ai.factory import get_llm_provider
 from ..config import Settings, get_settings
 from ..database import get_db
 from ..models import RAGReport, ResearchProject
+from ..rate_limiter import rate_limit
 from .reranker import get_reranker
 from .retrieval import VectorRetriever
 from .schemas import PageCitation, RAGReportListOut, RAGReportOut, RAGResearchRequest, ReportSection
@@ -55,6 +56,7 @@ def _parse_report_out(report: RAGReport) -> RAGReportOut:
     "/projects/{project_id}/rag-research",
     response_model=RAGReportOut,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(rate_limit(10, 60))],
 )
 def execute_rag_research(
     project_id: str,
@@ -107,11 +109,13 @@ def execute_rag_research(
 
         return report
 
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("RAG research execution error for project '%s': %s", project_id, exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"RAG research failed: {exc}",
+            detail="An error occurred while executing RAG research.",
         ) from exc
 
 

@@ -88,3 +88,19 @@ export function durationText(start: string | null | undefined, end: string | nul
     return "";
   }
 }
+
+/**
+ * Validate that an external URL strictly uses http:// or https:// protocol.
+ * Rejects javascript:, data:, file:, and other unsafe URI schemes.
+ */
+export function isSafeExternalUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  const trimmed = url.trim().toLowerCase();
+  return trimmed.startsWith("http://") || trimmed.startsWith("https://");
+}
+
+export function sanitizeUrl(url: string | null | undefined): string {
+  if (!url || !isSafeExternalUrl(url)) return "#";
+  return url.trim();
+}
+

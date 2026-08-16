@@ -24,6 +24,9 @@ class DocumentDetailOut(DocumentOut):
 class DocumentListOut(BaseModel):
     documents: list[DocumentOut]
     total: int
+    total_pages: int = 0
+    max_pages_limit: int = 10
+    remaining_pages: int = 10
 
 
 class ChunkOut(BaseModel):

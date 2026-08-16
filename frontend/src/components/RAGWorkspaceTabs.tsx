@@ -12,6 +12,9 @@ interface RAGWorkspaceTabsProps {
   report: RAGReport | null;
   pastReports: RAGReport[];
   documents: DocumentItem[];
+  totalPages?: number;
+  maxPagesLimit?: number;
+  remainingPages?: number;
   docsLoading: boolean;
   onUploadDoc: (file: File) => Promise<void>;
   onDeleteDoc: (docId: string) => Promise<void>;
@@ -26,6 +29,9 @@ export function RAGWorkspaceTabs({
   report,
   pastReports,
   documents,
+  totalPages = 0,
+  maxPagesLimit = 10,
+  remainingPages = 10,
   docsLoading,
   onUploadDoc,
   onDeleteDoc,
@@ -139,9 +145,17 @@ export function RAGWorkspaceTabs({
             aria-labelledby="tab-rag-vault"
             className="tab-panel vault-panel"
           >
-            <DocumentUpload onUpload={onUploadDoc} />
+            <DocumentUpload
+              onUpload={onUploadDoc}
+              totalPages={totalPages}
+              maxPagesLimit={maxPagesLimit}
+              remainingPages={remainingPages}
+            />
             <DocumentList
               documents={documents}
+              totalPages={totalPages}
+              maxPagesLimit={maxPagesLimit}
+              remainingPages={remainingPages}
               loading={docsLoading}
               onDelete={onDeleteDoc}
               onRefresh={onRefreshDocs}

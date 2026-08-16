@@ -4,6 +4,9 @@ import { RAGTabKey } from "../components/RAGWorkspaceTabs";
 
 export function useRAGData(activeProjectId?: string) {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [totalPages, setTotalPages] = useState<number>(0);
+  const [maxPagesLimit, setMaxPagesLimit] = useState<number>(10);
+  const [remainingPages, setRemainingPages] = useState<number>(10);
   const [docsLoading, setDocsLoading] = useState(false);
   const [report, setReport] = useState<RAGReport | null>(null);
   const [pastReports, setPastReports] = useState<RAGReport[]>([]);
@@ -24,6 +27,11 @@ export function useRAGData(activeProjectId?: string) {
       setDocsLoading(true);
       const res = await api.projectDocuments(pid);
       setDocuments(res.documents);
+      const pagesCount = res.total_pages ?? res.documents.reduce((acc, d) => acc + (d.page_count || 0), 0);
+      const limit = res.max_pages_limit ?? 10;
+      setTotalPages(pagesCount);
+      setMaxPagesLimit(limit);
+      setRemainingPages(res.remaining_pages ?? Math.max(0, limit - pagesCount));
     } catch {
       // Silently catch in polling
     } finally {
@@ -158,6 +166,9 @@ export function useRAGData(activeProjectId?: string) {
 
   return {
     documents,
+    totalPages,
+    maxPagesLimit,
+    remainingPages,
     docsLoading,
     report,
     setReport,
