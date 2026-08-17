@@ -3,6 +3,7 @@ import time
 from typing import Any
 import httpx
 import jwt
+from jwt import PyJWKClient
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
 from ..config import Settings, get_settings
@@ -34,13 +35,24 @@ class TokenCache:
 
 
 _token_cache = TokenCache(ttl_seconds=120)
+_jwks_clients: dict[str, PyJWKClient] = {}
+
+
+def get_jwks_client(supabase_url: str) -> PyJWKClient:
+    """Retrieve or initialize a cached PyJWKClient for a Supabase instance."""
+    url = f"{supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
+    if url not in _jwks_clients:
+        _jwks_clients[url] = PyJWKClient(url, cache_keys=True, max_cached_keys=16)
+    return _jwks_clients[url]
 
 
 class SupabaseJWTVerifier:
     """
     Enterprise-hardened Supabase JWT Verifier.
-    Performs local cryptographic HS256 validation in < 0.1ms if SUPABASE_JWT_SECRET is configured.
-    Falls back gracefully to remote verification with in-memory caching.
+    Supports:
+    1. Fast in-memory token cache (0.01ms).
+    2. Local cryptographic verification via shared secret (HS256) or Supabase JWKS (ES256 / RS256).
+    3. Resilient automatic fallthrough to official Supabase HTTPS auth (/auth/v1/user).
     """
 
     def __init__(self, settings: Settings | None = None):
@@ -69,36 +81,48 @@ class SupabaseJWTVerifier:
             _token_cache.set(clean_token, mock_user)
             return mock_user
 
-        # 3. Local Cryptographic JWT Verification (<0.1ms with zero network I/O)
-        jwt_secret = self.settings.supabase_jwt_secret
-        if jwt_secret:
-            try:
-                expected_issuer = f"{self.settings.supabase_url.rstrip('/')}/auth/v1" if self.settings.supabase_url else None
-                
-                decode_kwargs: dict[str, Any] = {
-                    "algorithms": ["HS256"],  # Strict algorithm pinning against alg confusion
-                    "audience": "authenticated",  # Enforce client auth audience
-                    "options": {
-                        "verify_exp": True,
-                        "verify_aud": True,
-                    },
-                    "leeway": 10,  # 10s leeway for slight clock drift
-                }
-                if expected_issuer:
-                    decode_kwargs["issuer"] = expected_issuer
-                    decode_kwargs["options"]["verify_iss"] = True
+        # 3. Local Cryptographic JWT Verification (HS256 & JWKS ES256/RS256)
+        try:
+            unverified_header = jwt.get_unverified_header(clean_token)
+            alg = unverified_header.get("alg", "HS256")
+            expected_issuer = f"{self.settings.supabase_url.rstrip('/')}/auth/v1" if self.settings.supabase_url else None
 
-                payload = jwt.decode(
-                    clean_token,
-                    jwt_secret,
-                    **decode_kwargs,
-                )
+            payload: dict[str, Any] | None = None
 
-                uid = payload.get("sub")
-                if not uid:
-                    logger.warning("JWT missing required 'sub' claim")
-                    return None
+            # 3A. Asymmetric Token (ES256 / RS256) -> Resolve via Supabase JWKS
+            if alg in {"ES256", "RS256", "EdDSA"} and self.settings.supabase_url:
+                try:
+                    jwks_client = get_jwks_client(self.settings.supabase_url)
+                    signing_key = jwks_client.get_signing_key_from_jwt(clean_token)
+                    payload = jwt.decode(
+                        clean_token,
+                        signing_key.key,
+                        algorithms=[alg],
+                        audience="authenticated",
+                        issuer=expected_issuer,
+                        options={"verify_exp": True, "verify_aud": True, "verify_iss": bool(expected_issuer)},
+                        leeway=10,
+                    )
+                except Exception as jwks_err:
+                    logger.debug("Local JWKS verification failed for alg %s: %s (falling back to remote)", alg, jwks_err)
 
+            # 3B. Symmetric Token (HS256) -> Resolve via Shared Secret
+            elif alg == "HS256" and self.settings.supabase_jwt_secret:
+                try:
+                    payload = jwt.decode(
+                        clean_token,
+                        self.settings.supabase_jwt_secret,
+                        algorithms=["HS256"],
+                        audience="authenticated",
+                        issuer=expected_issuer,
+                        options={"verify_exp": True, "verify_aud": True, "verify_iss": bool(expected_issuer)},
+                        leeway=10,
+                    )
+                except Exception as hs_err:
+                    logger.debug("Local HS256 verification failed: %s (falling back to remote)", hs_err)
+
+            if payload and payload.get("sub"):
+                uid = payload["sub"]
                 user_metadata = payload.get("user_metadata") or {}
                 user = AuthenticatedUser(
                     id=uid,
@@ -110,16 +134,13 @@ class SupabaseJWTVerifier:
                 _token_cache.set(clean_token, user)
                 return user
 
-            except ExpiredSignatureError:
-                logger.debug("Local JWT verification failed: Token has expired")
-                return None
-            except InvalidTokenError as exc:
-                logger.warning("Local JWT verification failed: %s", exc)
-                return None
-            except Exception as exc:
-                logger.exception("Unexpected error in local JWT verification: %s", exc)
+        except ExpiredSignatureError:
+            logger.debug("Local JWT verification failed: Token has expired")
+            return None
+        except Exception as exc:
+            logger.debug("Local verification encountered unexpected error: %s (falling back to remote)", exc)
 
-        # 4. Remote Fallback Verification via Supabase Auth API (if secret is not provided)
+        # 4. Remote Fallback Verification via Official Supabase Auth API (/auth/v1/user)
         if not self.settings.supabase_url or not self.settings.supabase_anon_key:
             logger.warning("Supabase URL or Anon Key not configured in settings")
             return None
@@ -139,6 +160,9 @@ class SupabaseJWTVerifier:
 
                 data: dict[str, Any] = resp.json()
                 uid = data.get("id")
+                if not uid:
+                    return None
+
                 email = data.get("email") or f"{uid}@supabase.local"
                 user_metadata = data.get("user_metadata") or {}
 
@@ -154,5 +178,5 @@ class SupabaseJWTVerifier:
                 return user
 
         except Exception as exc:
-            logger.exception("Error verifying token with Supabase: %s", exc)
+            logger.exception("Error verifying token with Supabase remote auth: %s", exc)
             return None

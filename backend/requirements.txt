@@ -13,4 +13,5 @@ arq>=0.26.0
 flashrank>=0.2.9
 PyMuPDF>=1.25.0
 python-multipart>=0.0.20
-pyjwt>=2.8.0
+pyjwt[crypto]>=2.8.0
+cryptography>=42.0.0
