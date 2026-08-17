@@ -155,28 +155,112 @@ export interface RAGReportList {
   total: number;
 }
 
+export interface ActiveRAGVaultData {
+  vault: { project_id: string; title: string; created_at: string };
+  documents: DocumentItem[];
+  reports: RAGReport[];
+  total_pages: number;
+  max_pages_limit: number;
+  remaining_pages: number;
+}
+
+export interface ActiveWebProjectData {
+  project: Project;
+  run: RunDetail | null;
+  sources: Source[];
+  claims: Claim[];
+  events: RunEvent[];
+  assessments: Assessment[];
+}
+
+export interface WorkspaceBootstrap {
+  user?: { id: string; email: string; full_name?: string };
+  quota?: { user_id: string; total_runs_used: number; max_free_runs: number; remaining_runs: number; is_quota_exhausted: boolean };
+  web_projects: Project[];
+  active_web?: ActiveWebProjectData | null;
+  rag_vaults: { project_id: string; title: string; created_at: string }[];
+  active_rag?: ActiveRAGVaultData | null;
+}
+
+// --- Auth Token Management ---
+
+let customAuthTokenGetter: (() => string | null) | null = null;
+
+export function setAuthTokenGetter(fn: () => string | null) {
+  customAuthTokenGetter = fn;
+}
+
+export function getEffectiveAuthToken(): string | null {
+  if (customAuthTokenGetter) {
+    const token = customAuthTokenGetter();
+    if (token) return token;
+  }
+  // Instant bootstrap fallback from localStorage before React state hydrates
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const key = window.localStorage.key(i);
+        if (key && key.startsWith("sb-") && key.endsWith("-auth-token")) {
+          const raw = window.localStorage.getItem(key);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            const token = parsed?.access_token || parsed?.currentSession?.access_token;
+            if (token) {
+              return token;
+            }
+          }
+        }
+      }
+    }
+  } catch {}
+  return null;
+}
+
 // --- HTTP Helpers ---
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getEffectiveAuthToken();
+  const authHeaders: Record<string, string> = {};
+  if (token) {
+    authHeaders["Authorization"] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
-    headers: { "Content-Type": "application/json", ...(options?.headers ?? {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders,
+      ...(options?.headers ?? {}),
+    },
   });
+
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(body.detail ?? "Request failed. Check the backend service.");
+    const err = new Error(body.detail ?? "Request failed. Check the backend service.") as Error & { status?: number };
+    err.status = response.status;
+    throw err;
   }
   return response.json() as Promise<T>;
 }
 
 async function uploadRequest<T>(path: string, formData: FormData): Promise<T> {
+  const token = getEffectiveAuthToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_URL}${path}`, {
     method: "POST",
+    headers,
     body: formData,
   });
+
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(body.detail ?? "File upload failed.");
+    const err = new Error(body.detail ?? "File upload failed.") as Error & { status?: number };
+    err.status = response.status;
+    throw err;
   }
   return response.json() as Promise<T>;
 }
@@ -194,7 +278,9 @@ export const api = {
   trace: (id: string) => request<Trace>(`/conclusions/${id}/trace`),
   retry: (id: string) => request<Run>(`/research-runs/${id}/retry`, { method: "POST" }),
 
-  // Document Management APIs
+  // Document Management & RAG Vault APIs
+  createRAGVault: (title: string) => request<{ project_id: string; title: string; created_at: string }>("/rag-vaults", { method: "POST", body: JSON.stringify({ title }) }),
+  ragVaults: () => request<{ project_id: string; title: string; created_at: string }[]>("/rag-vaults"),
   uploadDocument: (projectId: string, file: File) => {
     const formData = new FormData();
     formData.append("file", file);
@@ -212,4 +298,9 @@ export const api = {
     }),
   projectRAGReports: (projectId: string) => request<RAGReportList>(`/projects/${projectId}/rag-reports`),
   ragReport: (reportId: string) => request<RAGReport>(`/rag-reports/${reportId}`),
+
+  // Auth & Quota APIs
+  authMe: () => request<{ user: { id: string; email: string; full_name?: string }; quota: { user_id: string; total_runs_used: number; max_free_runs: number; remaining_runs: number; is_quota_exhausted: boolean } }>("/auth/me"),
+  authQuota: () => request<{ user_id: string; total_runs_used: number; max_free_runs: number; remaining_runs: number; is_quota_exhausted: boolean }>("/auth/quota"),
+  bootstrap: () => request<WorkspaceBootstrap>("/workspace/bootstrap"),
 };

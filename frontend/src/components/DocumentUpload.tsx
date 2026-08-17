@@ -1,22 +1,26 @@
 import { ChangeEvent, DragEvent, useRef, useState } from "react";
 
 interface DocumentUploadProps {
-  onUpload: (file: File) => Promise<void>;
+  onUpload: (file: File) => Promise<unknown>;
+  onReplace?: (file: File) => Promise<unknown>;
   disabled?: boolean;
   totalPages?: number;
   maxPagesLimit?: number;
   remainingPages?: number;
+  hasDocuments?: boolean;
 }
 
 export function DocumentUpload({
   onUpload,
+  onReplace,
   disabled,
   totalPages = 0,
   maxPagesLimit = 10,
   remainingPages = 10,
+  hasDocuments = false,
 }: DocumentUploadProps) {
   const isQuotaFull = totalPages >= maxPagesLimit || remainingPages <= 0;
-  const isUploadDisabled = disabled || isQuotaFull;
+  const isUploadDisabled = disabled;
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -43,7 +47,11 @@ export function DocumentUpload({
     setIsUploading(true);
 
     try {
-      await onUpload(file);
+      if (isQuotaFull && onReplace) {
+        await onReplace(file);
+      } else {
+        await onUpload(file);
+      }
       setSelectedFileName(null);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to upload document.";
@@ -176,7 +184,7 @@ export function DocumentUpload({
               <div className="upload-meta">
                 <p className="upload-title">
                   {isQuotaFull ? (
-                    <span className="quota-full-title">Project page quota full</span>
+                    <span className="quota-full-title"><span className="highlight-action">Click to replace PDF</span> or drop a new document to re-index</span>
                   ) : (
                     <>
                       <span className="highlight-action">Click to upload</span> or drag PDF here
@@ -185,7 +193,7 @@ export function DocumentUpload({
                 </p>
                 <p className="upload-subtext">
                   {isQuotaFull
-                    ? "Delete indexed documents below to reclaim page allowance."
+                    ? "Dropping a new PDF will replace existing documents and re-index vector embeddings automatically."
                     : `Max 10 pages per document • ${remainingPages} page allowance remaining in this project`}
                 </p>
               </div>

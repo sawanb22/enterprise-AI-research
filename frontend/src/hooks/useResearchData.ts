@@ -39,6 +39,23 @@ export function useResearchData() {
     }
   }, []);
 
+  const hydrateWebProject = useCallback((data: {
+    project: Project;
+    run: RunDetail | null;
+    sources: Source[];
+    claims: Claim[];
+    events: RunEvent[];
+    assessments: Assessment[];
+  }) => {
+    if (data.run) {
+      setRun(data.run);
+      setEvents(data.events || []);
+      setSources(data.sources || []);
+      setClaims(data.claims || []);
+      setAssessments(data.assessments || []);
+    }
+  }, []);
+
   const refreshRun = useCallback(async (runId: string) => {
     try {
       const [nextRun, nextEvents, nextSources, nextClaims, nextAssessments] = await Promise.all([
@@ -76,7 +93,6 @@ export function useResearchData() {
   });
 
   useEffect(() => {
-    refreshProjects();
     api
       .health()
       .then((result) =>
@@ -87,7 +103,7 @@ export function useResearchData() {
         })
       )
       .catch(() => setError("Backend is not reachable. Start FastAPI first."));
-  }, [refreshProjects]);
+  }, []);
 
   const createProject = useCallback(async (question: string) => {
     setError("");
@@ -151,6 +167,7 @@ export function useResearchData() {
 
   return {
     projects,
+    setProjects,
     run,
     events,
     sources,
@@ -166,6 +183,7 @@ export function useResearchData() {
     isRefreshing,
     manualRefresh,
     refreshProjects,
+    hydrateWebProject,
     refreshRun,
     createProject,
     openProject,

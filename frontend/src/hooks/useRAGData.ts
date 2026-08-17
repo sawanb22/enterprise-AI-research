@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, DocumentItem, PageCitation, RAGReport } from "../api";
+import { ActiveRAGVaultData, api, DocumentItem, PageCitation, RAGReport } from "../api";
 import { RAGTabKey } from "../components/RAGWorkspaceTabs";
 
-export function useRAGData(activeProjectId?: string) {
+export function useRAGData(
+  activeVaultId?: string,
+  onEnsureVault?: (title: string) => Promise<string>
+) {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [totalPages, setTotalPages] = useState<number>(0);
   const [maxPagesLimit, setMaxPagesLimit] = useState<number>(10);
@@ -10,6 +13,7 @@ export function useRAGData(activeProjectId?: string) {
   const [docsLoading, setDocsLoading] = useState(false);
   const [report, setReport] = useState<RAGReport | null>(null);
   const [pastReports, setPastReports] = useState<RAGReport[]>([]);
+  const [ragVaults, setRagVaults] = useState<{ project_id: string; title: string; created_at: string }[]>([]);
   const [ragLoading, setRagLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<RAGTabKey>("vault");
 
@@ -19,9 +23,33 @@ export function useRAGData(activeProjectId?: string) {
   const [totalCitations, setTotalCitations] = useState<number>(0);
   const [allReportCitations, setAllReportCitations] = useState<PageCitation[]>([]);
 
-  // Refresh documents for project
-  const refreshDocuments = useCallback(async (projectId?: string) => {
-    const pid = projectId ?? activeProjectId;
+  const refreshVaults = useCallback(async () => {
+    try {
+      const v = await api.ragVaults();
+      setRagVaults(v);
+      return v;
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const hydrateVaultData = useCallback((data: ActiveRAGVaultData) => {
+    setDocuments(data.documents || []);
+    setPastReports(data.reports || []);
+    setTotalPages(data.total_pages || 0);
+    setMaxPagesLimit(data.max_pages_limit || 10);
+    setRemainingPages(data.remaining_pages || 10);
+    if (data.reports && data.reports.length > 0) {
+      setReport(data.reports[0]);
+      setActiveTab("report");
+    } else if (data.documents && data.documents.length > 0) {
+      setActiveTab("vault");
+    }
+  }, []);
+
+  // Refresh documents for vault
+  const refreshDocuments = useCallback(async (vaultId?: string) => {
+    const pid = vaultId ?? activeVaultId;
     if (!pid) return;
     try {
       setDocsLoading(true);
@@ -37,34 +65,44 @@ export function useRAGData(activeProjectId?: string) {
     } finally {
       setDocsLoading(false);
     }
-  }, [activeProjectId]);
+  }, [activeVaultId]);
 
-  // Refresh past reports for project
-  const refreshReports = useCallback(async (projectId?: string) => {
-    const pid = projectId ?? activeProjectId;
+  // Refresh past reports for vault
+  const refreshReports = useCallback(async (vaultId?: string) => {
+    const pid = vaultId ?? activeVaultId;
     if (!pid) return;
     try {
       const res = await api.projectRAGReports(pid);
       setPastReports(res.reports);
       if (res.reports.length > 0 && !report) {
         setReport(res.reports[0]);
+        setActiveTab("report");
       }
     } catch {
       // Silently catch
     }
-  }, [activeProjectId, report]);
+  }, [activeVaultId, report]);
 
-  // Initial load when activeProjectId changes
-  useEffect(() => {
-    if (activeProjectId) {
-      void refreshDocuments(activeProjectId);
-      void refreshReports(activeProjectId);
+  const openReportById = useCallback((reportId: string) => {
+    const found = pastReports.find((r) => r.id === reportId);
+    if (found) {
+      setReport(found);
+      setActiveTab("report");
     } else {
-      setDocuments([]);
-      setPastReports([]);
-      setReport(null);
+      api.ragReport(reportId).then((r) => {
+        setReport(r);
+        setActiveTab("report");
+      }).catch(() => {});
     }
-  }, [activeProjectId, refreshDocuments, refreshReports]);
+  }, [pastReports]);
+
+  // Initial load when activeVaultId changes
+  useEffect(() => {
+    if (activeVaultId) {
+      void refreshDocuments(activeVaultId);
+      void refreshReports(activeVaultId);
+    }
+  }, [activeVaultId, refreshDocuments, refreshReports]);
 
   // Auto-poll while any document is in pending or processing status
   useEffect(() => {
@@ -72,56 +110,98 @@ export function useRAGData(activeProjectId?: string) {
       (d) => d.status === "pending" || d.status === "processing"
     );
 
-    if (!hasActiveProcessing || !activeProjectId) return;
+    if (!hasActiveProcessing || !activeVaultId) return;
 
     const interval = setInterval(() => {
-      void refreshDocuments(activeProjectId);
+      void refreshDocuments(activeVaultId);
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [documents, activeProjectId, refreshDocuments]);
+  }, [documents, activeVaultId, refreshDocuments]);
 
-  // Upload document
+  // Upload document with automatic workspace creation
   const uploadDocument = useCallback(
     async (file: File) => {
-      if (!activeProjectId) {
-        throw new Error("Select or create a project before uploading documents.");
+      let targetProjectId = activeVaultId;
+      if (!targetProjectId && onEnsureVault) {
+        targetProjectId = await onEnsureVault("Document Vault: " + file.name);
       }
-      await api.uploadDocument(activeProjectId, file);
-      await refreshDocuments(activeProjectId);
+      if (!targetProjectId) {
+        const created = await api.createRAGVault("Document Vault: " + file.name);
+        targetProjectId = created.project_id;
+      }
+      await api.uploadDocument(targetProjectId, file);
+      await refreshVaults();
+      await refreshDocuments(targetProjectId);
+      return targetProjectId;
     },
-    [activeProjectId, refreshDocuments]
+    [activeVaultId, onEnsureVault, refreshVaults, refreshDocuments]
+  );
+
+  // Replace existing document(s) and re-ingest new document
+  const replaceDocument = useCallback(
+    async (file: File) => {
+      let targetProjectId = activeVaultId;
+      if (!targetProjectId && onEnsureVault) {
+        targetProjectId = await onEnsureVault("Document Vault: " + file.name);
+      }
+      if (!targetProjectId) {
+        const created = await api.createRAGVault("Document Vault: " + file.name);
+        targetProjectId = created.project_id;
+      }
+
+      // Clean up previous documents
+      if (documents.length > 0) {
+        for (const doc of documents) {
+          try {
+            await api.deleteDocument(doc.id);
+          } catch (e) {
+            console.warn("Could not delete previous document during replacement:", e);
+          }
+        }
+      }
+
+      await api.uploadDocument(targetProjectId, file);
+      await refreshVaults();
+      await refreshDocuments(targetProjectId);
+      return targetProjectId;
+    },
+    [activeVaultId, onEnsureVault, documents, refreshVaults, refreshDocuments]
   );
 
   // Delete document
   const deleteDocument = useCallback(
     async (docId: string) => {
       await api.deleteDocument(docId);
-      if (activeProjectId) {
-        await refreshDocuments(activeProjectId);
+      if (activeVaultId) {
+        await refreshDocuments(activeVaultId);
       }
     },
-    [activeProjectId, refreshDocuments]
+    [activeVaultId, refreshDocuments]
   );
 
   // Execute RAG Research
   const executeRAG = useCallback(
     async (question: string) => {
-      if (!activeProjectId) {
-        throw new Error("Select or create a project first.");
+      let targetProjectId = activeVaultId;
+      if (!targetProjectId && onEnsureVault) {
+        targetProjectId = await onEnsureVault("Document Analysis: " + question);
+      }
+      if (!targetProjectId) {
+        throw new Error("Please upload a PDF document before running RAG research.");
       }
       setRagLoading(true);
       try {
-        const generated = await api.ragResearch(activeProjectId, question);
+        const generated = await api.ragResearch(targetProjectId, question);
         setReport(generated);
         setActiveTab("report");
-        await refreshReports(activeProjectId);
+        await refreshReports(targetProjectId);
         return generated;
       } finally {
         setRagLoading(false);
       }
     },
-    [activeProjectId, refreshReports]
+    [activeVaultId, onEnsureVault, refreshReports]
   );
 
   // Update citation list when report changes
@@ -173,6 +253,12 @@ export function useRAGData(activeProjectId?: string) {
     report,
     setReport,
     pastReports,
+    setPastReports,
+    openReportById,
+    ragVaults,
+    setRagVaults,
+    refreshVaults,
+    hydrateVaultData,
     ragLoading,
     activeTab,
     setActiveTab,
@@ -180,8 +266,9 @@ export function useRAGData(activeProjectId?: string) {
     activeCitationIndex,
     totalCitations,
     uploadDocument,
+    replaceDocument,
     deleteDocument,
-    refreshDocuments: () => refreshDocuments(activeProjectId),
+    refreshDocuments: () => refreshDocuments(activeVaultId),
     executeRAG,
     openCitation,
     closeCitation,

@@ -16,8 +16,9 @@ interface RAGWorkspaceTabsProps {
   maxPagesLimit?: number;
   remainingPages?: number;
   docsLoading: boolean;
-  onUploadDoc: (file: File) => Promise<void>;
-  onDeleteDoc: (docId: string) => Promise<void>;
+  onUploadDoc: (file: File) => Promise<unknown>;
+  onReplaceDoc?: (file: File) => Promise<unknown>;
+  onDeleteDoc: (docId: string) => Promise<unknown>;
   onRefreshDocs: () => void;
   onSelectPastReport: (report: RAGReport) => void;
   onOpenCitation: (citation: PageCitation, index: number, total: number) => void;
@@ -34,6 +35,7 @@ export function RAGWorkspaceTabs({
   remainingPages = 10,
   docsLoading,
   onUploadDoc,
+  onReplaceDoc,
   onDeleteDoc,
   onRefreshDocs,
   onSelectPastReport,
@@ -147,9 +149,11 @@ export function RAGWorkspaceTabs({
           >
             <DocumentUpload
               onUpload={onUploadDoc}
+              onReplace={onReplaceDoc}
               totalPages={totalPages}
               maxPagesLimit={maxPagesLimit}
               remainingPages={remainingPages}
+              hasDocuments={documents.length > 0}
             />
             <DocumentList
               documents={documents}

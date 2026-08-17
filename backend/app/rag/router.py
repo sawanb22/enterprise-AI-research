@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..ai.factory import get_llm_provider
+from ..auth import AuthenticatedUser, get_optional_user, require_user_quota
 from ..config import Settings, get_settings
 from ..database import get_db
 from ..models import RAGReport, ResearchProject
@@ -61,16 +62,23 @@ def _parse_report_out(report: RAGReport) -> RAGReportOut:
 def execute_rag_research(
     project_id: str,
     req: RAGResearchRequest,
+    user: AuthenticatedUser = Depends(require_user_quota),
     settings: Settings = Depends(get_settings),
     db: Session = Depends(get_db),
 ):
     """
     Execute end-to-end Enterprise RAG research on project documents:
     Multi-query expansion -> pgvector retrieval -> FlashRank cross-encoder rerank -> Grounded synthesis with citation gate.
+    Bounded by per-user lifetime message quota.
     """
-    # 1. Verify project exists
+    # 1. Verify project exists and belongs to user
     project = db.scalar(select(ResearchProject).where(ResearchProject.id == project_id))
     if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project '{project_id}' not found",
+        )
+    if project.user_id and project.user_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Project '{project_id}' not found",
@@ -125,9 +133,16 @@ def execute_rag_research(
 )
 def list_project_rag_reports(
     project_id: str,
+    user: AuthenticatedUser | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     """List all previously synthesized RAG reports for a project."""
+    project = db.scalar(select(ResearchProject).where(ResearchProject.id == project_id))
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    if user and project.user_id and project.user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
     reports = list(
         db.scalars(
             select(RAGReport)
@@ -147,11 +162,18 @@ def list_project_rag_reports(
 )
 def get_rag_report(
     report_id: str,
+    user: AuthenticatedUser | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     """Retrieve a specific RAG report by ID."""
     report = db.scalar(select(RAGReport).where(RAGReport.id == report_id))
     if not report:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="RAG report not found",
+        )
+    project = db.scalar(select(ResearchProject).where(ResearchProject.id == report.project_id))
+    if user and project and project.user_id and project.user_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="RAG report not found",

@@ -1,28 +1,41 @@
-# Secrets & Environment Variables
+# ==============================================================================
+# Enterprise AI Research Agent - Git Ignore Rules
+# ==============================================================================
+
+# --- Secrets & Environment Variables ---
 .env
 .env.*
 *.env
 !*.env.example
+.env.local
+.env.development
+.env.production
+.env.test
 
-# Databases & Local Data Stores
+# --- Databases, Data Dumps & Uploads ---
 *.db
 *.sqlite
 *.sqlite3
 *.db-journal
 *.db-wal
 *.db-shm
-data/*.db
-backend/data/*.db
-data/uploads/
-backend/data/uploads/
+data/
+backend/data/
 uploads/
+**/uploads/
 **/data/uploads/
 
+# --- Personal & Non-Deployment Documents ---
+*.pdf
+*.docx
+*.pptx
+*.xlsx
 
-# Python & Testing Caches
+# --- Python & Testing Caches ---
 .venv/
 venv/
 ENV/
+env/
 backend/.packages/
 __pycache__/
 **/__pycache__/
@@ -34,32 +47,36 @@ pytest-cache-files-*/
 **/pytest-cache-files-*/
 .ruff_cache/
 **/.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 
-# Node & Frontend Build Artifacts
+# --- Node & Frontend Build Artifacts ---
 node_modules/
 **/node_modules/
 dist/
 **/dist/
+build/
+**/build/
 *.tsbuildinfo
 **/*.tsbuildinfo
 .npm/
 .pnpm-store/
 
-# Temporary & Log Files
+# --- Temporary & Log Files ---
 tmp/
 temp/
 *.log
 npm-debug.log*
 pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# IDE & Editor Files
+# --- IDE, OS & AI Tool Files ---
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
 .gemini/
 .agents/
-
-# Local Scratch Dumps
-# Finalize research agent architecture.md
-
+.system_generated/

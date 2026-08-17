@@ -20,6 +20,8 @@ class ResearchProject(Base):
     __tablename__ = "research_projects"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    project_type: Mapped[str] = mapped_column(String(32), default="web", index=True)
     title: Mapped[str] = mapped_column(String(240))
     original_question: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

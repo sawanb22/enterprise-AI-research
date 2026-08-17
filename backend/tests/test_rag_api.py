@@ -35,9 +35,11 @@ def test_rag_api_flow(db_session):
         service.process_document(doc.id, db_session)
 
         # 3. Call RAG Research endpoint
+        headers = {"Authorization": "Bearer mock-user-rag"}
         resp = client.post(
             f"/api/v1/projects/{project.id}/rag-research",
             json={"question": "What is the wavelength used in EUV lithography?"},
+            headers=headers,
         )
         assert resp.status_code == 200
         report_data = resp.json()

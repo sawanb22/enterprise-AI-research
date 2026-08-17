@@ -71,8 +71,17 @@ def project_title(question: str) -> str:
     return question[:77].rstrip() + ("..." if len(question) > 77 else "")
 
 
-def create_project_and_run(db: Session, question: str, title: str | None) -> tuple[ResearchProject, ResearchRun]:
-    project = ResearchProject(title=title or project_title(question), original_question=question)
+def create_project_and_run(
+    db: Session,
+    question: str,
+    title: str | None = None,
+    user_id: str | None = None,
+) -> tuple[ResearchProject, ResearchRun]:
+    project = ResearchProject(
+        title=title or project_title(question),
+        original_question=question,
+        user_id=user_id,
+    )
     db.add(project)
     db.flush()
     run = ResearchRun(
@@ -640,3 +649,45 @@ def get_run_counts(db: Session, run_id: str) -> tuple[int, int, int]:
     claim_count = db.scalar(select(func.count()).select_from(Claim).where(Claim.run_id == run_id)) or 0
     conclusion_count = db.scalar(select(func.count()).select_from(Conclusion).where(Conclusion.run_id == run_id)) or 0
     return int(source_count), int(claim_count), int(conclusion_count)
+
+
+def get_bulk_run_counts(db: Session, run_ids: list[str]) -> dict[str, tuple[int, int, int]]:
+    """
+    Batched count calculation for multiple run IDs in 3 single aggregation queries
+    instead of 3*N individual queries.
+    """
+    if not run_ids:
+        return {}
+
+    source_map = dict(
+        db.execute(
+            select(SourceSnapshot.run_id, func.count(SourceSnapshot.id))
+            .where(SourceSnapshot.run_id.in_(run_ids))
+            .group_by(SourceSnapshot.run_id)
+        ).all()
+    )
+
+    claim_map = dict(
+        db.execute(
+            select(Claim.run_id, func.count(Claim.id))
+            .where(Claim.run_id.in_(run_ids))
+            .group_by(Claim.run_id)
+        ).all()
+    )
+
+    conclusion_map = dict(
+        db.execute(
+            select(Conclusion.run_id, func.count(Conclusion.id))
+            .where(Conclusion.run_id.in_(run_ids))
+            .group_by(Conclusion.run_id)
+        ).all()
+    )
+
+    return {
+        rid: (
+            int(source_map.get(rid, 0)),
+            int(claim_map.get(rid, 0)),
+            int(conclusion_map.get(rid, 0)),
+        )
+        for rid in run_ids
+    }

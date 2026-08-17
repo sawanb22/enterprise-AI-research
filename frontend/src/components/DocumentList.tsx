@@ -7,7 +7,7 @@ interface DocumentListProps {
   totalPages?: number;
   maxPagesLimit?: number;
   remainingPages?: number;
-  onDelete?: (documentId: string) => Promise<void>;
+  onDelete?: (documentId: string) => Promise<unknown>;
   onRefresh?: () => void;
 }
 

@@ -3,9 +3,10 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Up
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from ..auth import AuthenticatedUser, get_optional_user
 from ..config import Settings, get_settings
 from ..database import SessionLocal, get_db
-from ..models import Document, DocumentChunk
+from ..models import Document, DocumentChunk, ResearchProject
 from .schemas import DocumentDetailOut, DocumentListOut, DocumentOut
 from .service import DocumentService, DocumentServiceError
 
@@ -35,6 +36,7 @@ async def upload_document(
     project_id: str,
     file: UploadFile = File(...),
     background_tasks: BackgroundTasks = BackgroundTasks(),
+    user: AuthenticatedUser | None = Depends(get_optional_user),
     settings: Settings = Depends(get_settings),
     db: Session = Depends(get_db),
 ):
@@ -44,6 +46,12 @@ async def upload_document(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only PDF documents are supported (.pdf)",
         )
+
+    project = db.get(ResearchProject, project_id)
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    if user and project.user_id and project.user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
 
     max_bytes = settings.max_upload_size_mb * 1024 * 1024
     chunks: list[bytes] = []
@@ -103,8 +111,18 @@ async def upload_document(
 
 
 @router.get("/projects/{project_id}/documents", response_model=DocumentListOut)
-def list_documents(project_id: str, db: Session = Depends(get_db)):
+def list_documents(
+    project_id: str,
+    user: AuthenticatedUser | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
     """List all documents uploaded to a research project with quota telemetry."""
+    project = db.get(ResearchProject, project_id)
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    if user and project.user_id and project.user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
     docs = doc_service.list_project_documents(project_id, db)
     quota = doc_service.get_project_quota_stats(project_id, db)
     return DocumentListOut(
@@ -117,10 +135,17 @@ def list_documents(project_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/documents/{document_id}", response_model=DocumentDetailOut)
-def get_document_details(document_id: str, db: Session = Depends(get_db)):
+def get_document_details(
+    document_id: str,
+    user: AuthenticatedUser | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
     """Get document status, metadata, and chunk statistics."""
     doc = doc_service.get_document(document_id, db)
     if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    project = db.get(ResearchProject, doc.project_id)
+    if user and project and project.user_id and project.user_id != user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
     chunk_count = db.scalar(
@@ -143,8 +168,19 @@ def get_document_details(document_id: str, db: Session = Depends(get_db)):
 
 
 @router.delete("/documents/{document_id}")
-def delete_document(document_id: str, db: Session = Depends(get_db)):
+def delete_document(
+    document_id: str,
+    user: AuthenticatedUser | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
     """Delete a document, its chunks, embeddings, and uploaded file."""
+    doc = doc_service.get_document(document_id, db)
+    if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    project = db.get(ResearchProject, doc.project_id)
+    if user and project and project.user_id and project.user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
     success = doc_service.delete_document(document_id, db)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")

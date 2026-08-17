@@ -59,33 +59,66 @@ def test_rate_limiter_endpoint_429():
     limiter.reset()
 
 
-def test_upload_rejects_non_pdf_extension():
-    with TestClient(app) as client:
+def test_upload_rejects_non_pdf_extension(db_session):
+    from app.database import get_db
+    from app.models import ResearchProject
+    app.dependency_overrides[get_db] = lambda: db_session
+
+    try:
+        project = ResearchProject(title="Sec Non PDF", original_question="Sec Question")
+        db_session.add(project)
+        db_session.commit()
+
+        client = TestClient(app)
         files = {"file": ("malicious.exe", b"%PDF-1.4 Fake PDF", "application/pdf")}
-        resp = client.post("/api/v1/projects/proj-123/documents", files=files)
+        resp = client.post(f"/api/v1/projects/{project.id}/documents", files=files)
         assert resp.status_code == 400
         assert "Only PDF documents are supported" in resp.json()["detail"]
+    finally:
+        app.dependency_overrides.clear()
 
 
-def test_upload_rejects_invalid_pdf_magic_bytes():
-    with TestClient(app) as client:
+def test_upload_rejects_invalid_pdf_magic_bytes(db_session):
+    from app.database import get_db
+    from app.models import ResearchProject
+    app.dependency_overrides[get_db] = lambda: db_session
+
+    try:
+        project = ResearchProject(title="Sec Test", original_question="Sec Question")
+        db_session.add(project)
+        db_session.commit()
+
+        client = TestClient(app)
         files = {"file": ("document.pdf", b"NOT_A_PDF_HEADER_CONTENT", "application/pdf")}
-        resp = client.post("/api/v1/projects/proj-123/documents", files=files)
+        resp = client.post(f"/api/v1/projects/{project.id}/documents", files=files)
         assert resp.status_code == 400
         assert "Invalid file format" in resp.json()["detail"]
+    finally:
+        app.dependency_overrides.clear()
 
 
-def test_upload_rejects_oversized_payload(monkeypatch):
+def test_upload_rejects_oversized_payload(db_session, monkeypatch):
     from app.config import get_settings
+    from app.database import get_db
+    from app.models import ResearchProject
+    app.dependency_overrides[get_db] = lambda: db_session
+
     settings = get_settings()
     monkeypatch.setattr(settings, "max_upload_size_mb", 1)
 
-    with TestClient(app) as client:
+    try:
+        project = ResearchProject(title="Oversize Test", original_question="Sec Question")
+        db_session.add(project)
+        db_session.commit()
+
+        client = TestClient(app)
         oversized_content = b"%PDF-1.5 " + b"X" * (2 * 1024 * 1024)
         files = {"file": ("huge.pdf", oversized_content, "application/pdf")}
-        resp = client.post("/api/v1/projects/proj-123/documents", files=files)
+        resp = client.post(f"/api/v1/projects/{project.id}/documents", files=files)
         assert resp.status_code == 413
         assert "File exceeds maximum allowed size" in resp.json()["detail"]
+    finally:
+        app.dependency_overrides.clear()
 
 
 def test_auth_verification_modes():
@@ -101,3 +134,70 @@ def test_auth_verification_modes():
     with pytest.raises(HTTPException) as exc:
         verify_api_key(header_key="wrong-key", bearer_creds=None, settings=prod_settings)
     assert exc.value.status_code == 401
+
+
+@pytest.mark.anyio
+async def test_local_jwt_cryptographic_verification():
+    import time
+    import jwt
+    from app.auth.jwt_verifier import SupabaseJWTVerifier
+    from app.config import Settings
+
+    secret = "super-secret-test-jwt-key-for-local-signing-12345"
+    settings = Settings(
+        supabase_jwt_secret=secret,
+        supabase_url="https://testproject.supabase.co",
+    )
+    verifier = SupabaseJWTVerifier(settings=settings)
+
+    # 1. Valid signed HS256 JWT
+    valid_payload = {
+        "sub": "user-uuid-12345",
+        "email": "researcher@modus.com",
+        "aud": "authenticated",
+        "iss": "https://testproject.supabase.co/auth/v1",
+        "exp": int(time.time()) + 3600,
+        "user_metadata": {"full_name": "Dr. Researcher"},
+    }
+    valid_token = jwt.encode(valid_payload, secret, algorithm="HS256")
+    user = await verifier.verify_token(valid_token)
+    assert user is not None
+    assert user.id == "user-uuid-12345"
+    assert user.email == "researcher@modus.com"
+    assert user.full_name == "Dr. Researcher"
+
+    # 2. Forged signature -> Rejected (None)
+    forged_token = jwt.encode(valid_payload, "wrong-signature-key", algorithm="HS256")
+    user_forged = await verifier.verify_token(forged_token)
+    assert user_forged is None
+
+    # 3. Expired token -> Rejected (None)
+    expired_payload = {**valid_payload, "exp": int(time.time()) - 100}
+    expired_token = jwt.encode(expired_payload, secret, algorithm="HS256")
+    user_expired = await verifier.verify_token(expired_token)
+    assert user_expired is None
+
+    # 4. Wrong audience -> Rejected (None)
+    wrong_aud_payload = {**valid_payload, "aud": "admin_service_role"}
+    wrong_aud_token = jwt.encode(wrong_aud_payload, secret, algorithm="HS256")
+    user_wrong_aud = await verifier.verify_token(wrong_aud_token)
+    assert user_wrong_aud is None
+
+
+def test_bootstrap_security_headers_and_batching(db_session):
+    """GET /api/v1/workspace/bootstrap returns strict anti-proxy-bleed security headers."""
+    from app.database import get_db
+    app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(app)
+
+    try:
+        headers = {"Authorization": "Bearer mock-user-header-check"}
+        resp = client.get("/api/v1/workspace/bootstrap", headers=headers)
+        assert resp.status_code == 200
+        assert "private" in resp.headers.get("Cache-Control", "")
+        assert "Authorization" in resp.headers.get("Vary", "")
+        assert resp.headers.get("X-Content-Type-Options") == "nosniff"
+        data = resp.json()
+        assert data["user"]["id"] == "usr_header-check"
+    finally:
+        app.dependency_overrides.clear()

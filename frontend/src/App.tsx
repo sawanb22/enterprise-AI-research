@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
+import { api } from "./api";
+import { AuthModal, AuthProvider, QuotaExceededModal, useAuth } from "./auth";
 import { CitationDrawer } from "./components/CitationDrawer";
+import { CleanWebReportView } from "./components/CleanWebReportView";
 import { ConnectionIndicator } from "./components/ConnectionIndicator";
 import { EvidenceDrawer } from "./components/EvidenceDrawer";
 import { PipelineCard } from "./components/PipelineCard";
@@ -7,13 +10,17 @@ import { QuestionForm, ResearchMode } from "./components/QuestionForm";
 import { RAGWorkspaceTabs } from "./components/RAGWorkspaceTabs";
 import { ResearchTabs, TabKey } from "./components/ResearchTabs";
 import { Sidebar } from "./components/Sidebar";
+import { StarfieldBackground } from "./components/StarfieldBackground";
+import { WebReportToolbar } from "./components/WebReportToolbar";
 import { useRAGData } from "./hooks/useRAGData";
 import { useResearchData } from "./hooks/useResearchData";
 import { formatDateTime, pretty, sanitizeText } from "./utils/textUtils";
+import { SecureWorkspaceCache } from "./utils/secureStorage";
 
-export function App() {
+function MainWorkspace() {
   const {
     projects,
+    setProjects,
     run,
     events,
     sources,
@@ -28,6 +35,9 @@ export function App() {
     lastUpdated,
     isRefreshing,
     manualRefresh,
+    refreshProjects,
+    hydrateWebProject,
+    refreshRun,
     createProject,
     openProject,
     openRunById,
@@ -36,13 +46,30 @@ export function App() {
     retry,
     completedStages,
     isActiveRun,
-    refreshProjects,
   } = useResearchData();
 
-  const [mode, setMode] = useState<ResearchMode>("web");
-  const [activeTab, setActiveTab] = useState<TabKey>("conclusions");
+  const { user, quota, openAuthModal, openQuotaModal, refreshQuota } = useAuth();
 
-  const activeProjectId = run?.project_id || (projects.length > 0 ? projects[0].id : undefined);
+  const [mode, setMode] = useState<ResearchMode>(() => {
+    return (sessionStorage.getItem("el_active_mode") as ResearchMode) || "web";
+  });
+  const [activeTab, setActiveTab] = useState<TabKey>("conclusions");
+  const [webReportMode, setWebReportMode] = useState<"clean" | "tabs">("clean");
+  const [selectedRAGVaultId, setSelectedRAGVaultId] = useState<string | undefined>(() => {
+    return sessionStorage.getItem("el_active_rag_vault_id") || undefined;
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem("el_active_mode", mode);
+  }, [mode]);
+
+  useEffect(() => {
+    if (selectedRAGVaultId) {
+      sessionStorage.setItem("el_active_rag_vault_id", selectedRAGVaultId);
+    }
+  }, [selectedRAGVaultId]);
+
+  const activeWebProjectId = run?.project_id || (projects.length > 0 ? projects[0].id : undefined);
 
   const {
     documents,
@@ -53,6 +80,11 @@ export function App() {
     report,
     setReport,
     pastReports,
+    openReportById,
+    ragVaults,
+    setRagVaults,
+    refreshVaults,
+    hydrateVaultData,
     ragLoading,
     activeTab: ragActiveTab,
     setActiveTab: setRAGActiveTab,
@@ -60,6 +92,7 @@ export function App() {
     activeCitationIndex,
     totalCitations,
     uploadDocument,
+    replaceDocument,
     deleteDocument,
     refreshDocuments,
     executeRAG,
@@ -69,7 +102,78 @@ export function App() {
     prevCitation,
     hasNextCitation,
     hasPrevCitation,
-  } = useRAGData(activeProjectId);
+  } = useRAGData(
+    selectedRAGVaultId,
+    async (title: string): Promise<string> => {
+      const created = await api.createRAGVault(title);
+      setSelectedRAGVaultId(created.project_id);
+      await refreshVaults();
+      return created.project_id;
+    }
+  );
+
+  const activeRAGVaultId = selectedRAGVaultId || (ragVaults.length > 0 ? ragVaults[0].project_id : undefined);
+
+  // Unified fast workspace bootstrap with Instant SWR Cache Hydration (0ms reload)
+  useEffect(() => {
+    let mounted = true;
+
+    // 1. Instant 0ms SWR Cache Hydration from sessionStorage
+    if (user?.id) {
+      const cached = SecureWorkspaceCache.loadSnapshot(user.id);
+      if (cached) {
+        if (cached.web_projects && cached.web_projects.length > 0) {
+          setProjects(cached.web_projects);
+        }
+        if (cached.active_web) {
+          hydrateWebProject(cached.active_web);
+        }
+        if (cached.rag_vaults && cached.rag_vaults.length > 0) {
+          setRagVaults(cached.rag_vaults);
+          if (!selectedRAGVaultId) {
+            setSelectedRAGVaultId(cached.rag_vaults[0].project_id);
+          }
+        }
+        if (cached.active_rag) {
+          hydrateVaultData(cached.active_rag);
+        }
+      }
+    }
+
+    // 2. Background Revalidation
+    async function bootstrapWorkspace() {
+      try {
+        const data = await api.bootstrap();
+        if (!mounted) return;
+        if (data.web_projects) {
+          setProjects(data.web_projects);
+        }
+        if (data.active_web) {
+          hydrateWebProject(data.active_web);
+        }
+        if (data.rag_vaults) {
+          setRagVaults(data.rag_vaults);
+          if (!selectedRAGVaultId && data.rag_vaults.length > 0) {
+            setSelectedRAGVaultId(data.rag_vaults[0].project_id);
+          }
+        }
+        if (data.active_rag) {
+          hydrateVaultData(data.active_rag);
+        }
+
+        // Save fresh snapshot to tenant-isolated cache
+        if (user?.id) {
+          SecureWorkspaceCache.saveSnapshot(user.id, data);
+        }
+      } catch (err) {
+        console.warn("Bootstrap fallback error:", err);
+      }
+    }
+    void bootstrapWorkspace();
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id, setProjects, hydrateWebProject, setRagVaults, hydrateVaultData, selectedRAGVaultId]);
 
   // When a run is loaded or active run finishes in Web mode, manage tab selection
   useEffect(() => {
@@ -80,17 +184,29 @@ export function App() {
   }, [run?.id, isActiveRun]);
 
   const handleInquirySubmit = async (finalQuestion: string) => {
-    if (mode === "web") {
-      await createProject(finalQuestion);
-    } else {
-      // Document RAG mode
-      if (!activeProjectId) {
-        // Automatically initialize project first
-        const created = await createProject(finalQuestion);
-        await executeRAG(finalQuestion);
-        await refreshProjects();
+    if (!user) {
+      openAuthModal("signin");
+      return;
+    }
+    if (quota?.is_quota_exhausted) {
+      openQuotaModal();
+      return;
+    }
+
+    try {
+      if (mode === "web") {
+        await createProject(finalQuestion);
       } else {
+        // Document RAG mode: execute directly (auto-creates workspace if needed)
         await executeRAG(finalQuestion);
+      }
+      await refreshQuota();
+    } catch (err: unknown) {
+      const statusErr = err as Error & { status?: number };
+      if (statusErr.status === 401) {
+        openAuthModal("signin");
+      } else if (statusErr.status === 402) {
+        openQuotaModal();
       }
     }
   };
@@ -99,25 +215,40 @@ export function App() {
     <main className="shell">
       <Sidebar
         projects={projects}
-        activeProjectId={activeProjectId}
+        ragVaults={ragVaults}
+        activeProjectId={mode === "web" ? activeWebProjectId : activeRAGVaultId}
         selectedRunId={run?.id}
+        selectedReportId={report?.id}
+        pastReports={pastReports}
+        currentMode={mode}
         healthInfo={healthInfo}
         onSelectProject={(proj) => {
+          setMode("web");
           openProject(proj);
-          if (mode === "rag") {
-            setRAGActiveTab("vault");
-          }
         }}
-        onSelectRun={openRunById}
+        onSelectRun={(runId) => {
+          setMode("web");
+          openRunById(runId);
+        }}
+        onSelectVault={(vaultId) => {
+          setSelectedRAGVaultId(vaultId);
+          setMode("rag");
+          setRAGActiveTab("vault");
+        }}
+        onSelectReport={(reportId, vaultId) => {
+          setSelectedRAGVaultId(vaultId);
+          setMode("rag");
+          openReportById(reportId);
+        }}
       />
 
       <section className="workspace" id="main-content">
         <header className="workspace-header">
           <div className="workspace-title-area">
-            <p className="eyebrow">ENTERPRISE RESEARCH LAB</p>
+            <p className="eyebrow">ENTERPRISE RESEARCH LAB · DEEP SPACE COSMOS</p>
             <h1>Evidence before conclusions.</h1>
             <p className="subhead">
-              Plan, source, compare, and trace every answer with auditable provenance.
+              Plan, source, compare, and trace every answer with auditable provenance across the digital cosmos.
             </p>
           </div>
 
@@ -169,11 +300,11 @@ export function App() {
           <>
             {!run && (
               <section className="empty-state" aria-label="Getting started">
-                <div className="empty-state-graphic" aria-hidden="true">🔬</div>
-                <h2>Start with a business or technical inquiry</h2>
+                <div className="empty-state-graphic" aria-hidden="true">✦</div>
+                <h2>Explore the Research Horizon</h2>
                 <p>
-                  EvidenceLab will execute multi-angle discovery, retrieve authoritative snapshots,
-                  extract verbatim claims, compare cross-source agreements, and synthesize verified conclusions.
+                  EvidenceLab executes multi-angle discovery, retrieves authoritative snapshots,
+                  extracts verbatim claims, compares cross-source agreements, and synthesizes verified conclusions.
                 </p>
               </section>
             )}
@@ -206,8 +337,8 @@ export function App() {
                   </div>
                 </section>
 
-                {/* Pipeline Card */}
-                {(isActiveRun || activeTab !== "activity") && (
+                {/* Live Pipeline during Active Discovery */}
+                {isActiveRun && (
                   <PipelineCard
                     run={run}
                     events={events}
@@ -217,19 +348,65 @@ export function App() {
                   />
                 )}
 
-                {/* Tabbed Results-First View */}
-                <ResearchTabs
-                  activeTab={activeTab}
-                  onSelectTab={setActiveTab}
-                  run={run}
-                  events={events}
-                  sources={sources}
-                  claims={claims}
-                  assessments={assessments}
-                  completedStages={completedStages}
-                  onViewEvidence={openTrace}
-                  onRetry={retry}
-                />
+                {/* Completed Run Views: Clean Executive Document vs Detailed Tabs */}
+                {!isActiveRun && (
+                  <>
+                    <WebReportToolbar
+                      run={run}
+                      sources={sources}
+                      claims={claims}
+                      viewMode={webReportMode}
+                      onToggleMode={setWebReportMode}
+                    />
+
+                    {webReportMode === "clean" ? (
+                      <CleanWebReportView
+                        run={run}
+                        sources={sources}
+                        claims={claims}
+                        onViewEvidence={openTrace}
+                      />
+                    ) : (
+                      <>
+                        <PipelineCard
+                          run={run}
+                          events={events}
+                          completedStages={completedStages}
+                          onRetry={retry}
+                          onViewActivity={() => setActiveTab("activity")}
+                        />
+                        <ResearchTabs
+                          activeTab={activeTab}
+                          onSelectTab={setActiveTab}
+                          run={run}
+                          events={events}
+                          sources={sources}
+                          claims={claims}
+                          assessments={assessments}
+                          completedStages={completedStages}
+                          onViewEvidence={openTrace}
+                          onRetry={retry}
+                        />
+                      </>
+                    )}
+                  </>
+                )}
+
+                {/* If run is active, also show tabs below pipeline */}
+                {isActiveRun && (
+                  <ResearchTabs
+                    activeTab={activeTab}
+                    onSelectTab={setActiveTab}
+                    run={run}
+                    events={events}
+                    sources={sources}
+                    claims={claims}
+                    assessments={assessments}
+                    completedStages={completedStages}
+                    onViewEvidence={openTrace}
+                    onRetry={retry}
+                  />
+                )}
               </>
             )}
           </>
@@ -248,6 +425,7 @@ export function App() {
             remainingPages={remainingPages}
             docsLoading={docsLoading}
             onUploadDoc={uploadDocument}
+            onReplaceDoc={replaceDocument}
             onDeleteDoc={deleteDocument}
             onRefreshDocs={refreshDocuments}
             onSelectPastReport={setReport}
@@ -274,6 +452,17 @@ export function App() {
         />
       )}
     </main>
+  );
+}
+
+export function App() {
+  return (
+    <AuthProvider>
+      <StarfieldBackground />
+      <MainWorkspace />
+      <AuthModal />
+      <QuotaExceededModal />
+    </AuthProvider>
   );
 }
 

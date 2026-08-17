@@ -44,6 +44,11 @@ class Settings(BaseSettings):
 
     # Security & API Auth Settings
     api_auth_key: str | None = None
+    supabase_url: str = "https://efxsetcoyfccyxvndjqu.supabase.co"
+    supabase_anon_key: str | None = None
+    supabase_service_role_key: str | None = None
+    supabase_jwt_secret: str | None = None
+    max_free_messages_per_user: int = 5
     rate_limit_research_per_min: int = 10
     rate_limit_read_per_min: int = 60
 
