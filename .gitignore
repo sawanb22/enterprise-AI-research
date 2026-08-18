@@ -80,3 +80,7 @@ Thumbs.db
 .gemini/
 .agents/
 .system_generated/
+
+# --- Local-Only Architecture Documentation ---
+FRONTEND_MAP.md
+BACKEND_MAP.md
