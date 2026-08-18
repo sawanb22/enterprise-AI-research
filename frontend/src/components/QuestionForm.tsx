@@ -85,7 +85,10 @@ export function QuestionForm({
             disabled={loading}
           >
             <span className="mode-icon" aria-hidden="true">🌐</span>
-            <span className="mode-label">Web Intelligence</span>
+            <span className="mode-label">
+              <span className="mode-label-full">Web Intelligence</span>
+              <span className="mode-label-short">Web Research</span>
+            </span>
             <span className="mode-badge">Live Discovery</span>
           </button>
 
@@ -98,7 +101,10 @@ export function QuestionForm({
             disabled={loading}
           >
             <span className="mode-icon" aria-hidden="true">📑</span>
-            <span className="mode-label">Enterprise Document RAG</span>
+            <span className="mode-label">
+              <span className="mode-label-full">Enterprise Document RAG</span>
+              <span className="mode-label-short">Document RAG</span>
+            </span>
             <span className="mode-badge highlight">PDF Vault</span>
           </button>
         </div>

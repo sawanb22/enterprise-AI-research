@@ -58,6 +58,7 @@ function MainWorkspace() {
   const [selectedRAGVaultId, setSelectedRAGVaultId] = useState<string | undefined>(() => {
     return sessionStorage.getItem("el_active_rag_vault_id") || undefined;
   });
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   useEffect(() => {
     sessionStorage.setItem("el_active_mode", mode);
@@ -213,6 +214,34 @@ function MainWorkspace() {
 
   return (
     <main className="shell">
+      {/* Sticky Top Bar for Mobile & Tablet screens (< 1024px) */}
+      <header className="mobile-header" aria-label="Mobile Navigation Bar">
+        <button
+          type="button"
+          className={`mobile-menu-btn ${isMobileNavOpen ? "open" : ""}`}
+          onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
+          aria-expanded={isMobileNavOpen}
+          aria-controls="app-sidebar"
+          aria-label={isMobileNavOpen ? "Close navigation menu" : "Open navigation menu"}
+        >
+          <span className="hamburger-line" />
+          <span className="hamburger-line" />
+          <span className="hamburger-line" />
+        </button>
+
+        <div className="mobile-brand">
+          <span className="brand-mark mobile-mark" aria-hidden="true">✦</span>
+          <span className="mobile-brand-title">EvidenceLab</span>
+        </div>
+
+        <div className="mobile-header-right">
+          <span className="mobile-mode-pill">
+            {mode === "web" ? "🌐 Web" : "📑 RAG"}
+          </span>
+          <span className={`mobile-status-dot ${connectionStatus}`} title={`System: ${connectionStatus}`} />
+        </div>
+      </header>
+
       <Sidebar
         projects={projects}
         ragVaults={ragVaults}
@@ -222,6 +251,8 @@ function MainWorkspace() {
         pastReports={pastReports}
         currentMode={mode}
         healthInfo={healthInfo}
+        isOpen={isMobileNavOpen}
+        onClose={() => setIsMobileNavOpen(false)}
         onSelectProject={(proj) => {
           setMode("web");
           openProject(proj);

@@ -64,11 +64,11 @@ export function CleanWebReportView({
             <table className="clean-bibliography-table">
               <thead>
                 <tr>
-                  <th style={{ width: "45px" }}>Ref</th>
-                  <th style={{ width: "260px" }}>Source Title & Publisher</th>
-                  <th style={{ width: "110px" }}>Type</th>
-                  <th>Canonical Source URL</th>
-                  <th style={{ width: "70px", textAlign: "right" }}>Link</th>
+                  <th className="th-ref">Ref</th>
+                  <th className="th-doc">Source Title & Publisher</th>
+                  <th className="th-page">Type</th>
+                  <th className="th-quote">Canonical Source URL</th>
+                  <th className="th-action">Link</th>
                 </tr>
               </thead>
               <tbody>
@@ -79,10 +79,10 @@ export function CleanWebReportView({
 
                   return (
                     <tr key={source.id} className="clean-biblio-row">
-                      <td className="biblio-ref-cell">
+                      <td className="biblio-ref-cell" data-label="Ref">
                         <span className="biblio-ref-tag">[{idx + 1}]</span>
                       </td>
-                      <td className="biblio-doc-cell">
+                      <td className="biblio-doc-cell" data-label="Source">
                         <div className="biblio-doc-name">
                           <span className="doc-icon" aria-hidden="true">🌐</span>
                           <div>
@@ -95,11 +95,11 @@ export function CleanWebReportView({
                           </div>
                         </div>
                       </td>
-                      <td className="biblio-page-cell">{pretty(source.source_type || "web")}</td>
-                      <td className="biblio-quote-cell">
+                      <td className="biblio-page-cell" data-label="Type">{pretty(source.source_type || "web")}</td>
+                      <td className="biblio-quote-cell" data-label="URL">
                         <span className="web-canonical-link-text">{source.canonical_url}</span>
                       </td>
-                      <td className="biblio-action-cell">
+                      <td className="biblio-action-cell" data-label="Link">
                         <a
                           href={source.canonical_url}
                           target="_blank"

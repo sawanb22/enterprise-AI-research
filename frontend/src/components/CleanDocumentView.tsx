@@ -135,32 +135,32 @@ export function CleanDocumentView({
             <table className="clean-bibliography-table">
               <thead>
                 <tr>
-                  <th style={{ width: "45px" }}>Ref</th>
-                  <th style={{ width: "220px" }}>Source Document</th>
-                  <th style={{ width: "70px" }}>Page</th>
-                  <th>Verbatim Quote from Document</th>
-                  <th style={{ width: "80px", textAlign: "right" }}>Inspect</th>
+                  <th className="th-ref">Ref</th>
+                  <th className="th-doc">Source Document</th>
+                  <th className="th-page">Page</th>
+                  <th className="th-quote">Verbatim Quote from Document</th>
+                  <th className="th-action">Inspect</th>
                 </tr>
               </thead>
               <tbody>
                 {uniqueCitations.map(({ cit, globalIdx, refNum }) => (
                   <tr key={refNum} className="clean-biblio-row">
-                    <td className="biblio-ref-cell">
+                    <td className="biblio-ref-cell" data-label="Ref">
                       <span className="biblio-ref-tag">[{refNum}]</span>
                     </td>
-                    <td className="biblio-doc-cell" title={cit.document_filename}>
+                    <td className="biblio-doc-cell" data-label="Document" title={cit.document_filename}>
                       <div className="biblio-doc-name">
                         <span className="doc-icon" aria-hidden="true">📄</span>
                         <span className="doc-text">{cit.document_filename}</span>
                       </div>
                     </td>
-                    <td className="biblio-page-cell">p. {cit.page_number}</td>
-                    <td className="biblio-quote-cell">
+                    <td className="biblio-page-cell" data-label="Page">p. {cit.page_number}</td>
+                    <td className="biblio-quote-cell" data-label="Quote">
                       <blockquote className="biblio-quote">
                         "{sanitizeText(cit.verbatim_quote)}"
                       </blockquote>
                     </td>
-                    <td className="biblio-action-cell">
+                    <td className="biblio-action-cell" data-label="Action">
                       <button
                         type="button"
                         className="biblio-inspect-btn"

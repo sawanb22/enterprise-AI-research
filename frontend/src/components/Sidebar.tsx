@@ -16,6 +16,8 @@ interface SidebarProps {
     model?: string;
     configured: Record<string, boolean> | null;
   };
+  isOpen?: boolean;
+  onClose?: () => void;
   onSelectProject: (project: Project) => void;
   onSelectRun: (runId: string) => void;
   onSelectVault?: (vaultId: string) => void;
@@ -31,6 +33,8 @@ export function Sidebar({
   pastReports = [],
   currentMode,
   healthInfo,
+  isOpen = false,
+  onClose,
   onSelectProject,
   onSelectRun,
   onSelectVault,
@@ -67,6 +71,18 @@ export function Sidebar({
     }
   }, [activeProjectId, currentMode, pastReports]);
 
+  // Handle ESC key for mobile drawer
+  useEffect(() => {
+    if (!isOpen || !onClose) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   const toggleProject = async (project: Project) => {
     const isExpanded = expandedProjects[project.id];
     setExpandedProjects((prev) => ({ ...prev, [project.id]: !isExpanded }));
@@ -78,6 +94,7 @@ export function Sidebar({
       } catch {}
     }
     onSelectProject(project);
+    onClose?.();
   };
 
   const toggleVault = async (vaultId: string) => {
@@ -91,6 +108,7 @@ export function Sidebar({
       } catch {}
     }
     if (onSelectVault) onSelectVault(vaultId);
+    onClose?.();
   };
 
   const aiLabel =
@@ -101,14 +119,36 @@ export function Sidebar({
       : "AI Engine";
 
   return (
-    <aside className="sidebar" aria-label="Research Projects Navigation">
-      <div className="brand">
-        <span className="brand-mark" aria-hidden="true">✦</span>
-        <div>
-          <strong>EvidenceLab</strong>
-          <small>Enterprise Research Agent</small>
+    <>
+      {isOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        id="app-sidebar"
+        className={`sidebar ${isOpen ? "mobile-open" : ""}`}
+        aria-label="Research Projects Navigation"
+      >
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">✦</span>
+          <div className="brand-text">
+            <strong>EvidenceLab</strong>
+            <small>Enterprise Research Agent</small>
+          </div>
+          {onClose && (
+            <button
+              type="button"
+              className="sidebar-close-btn"
+              onClick={onClose}
+              aria-label="Close navigation drawer"
+            >
+              ✕
+            </button>
+          )}
         </div>
-      </div>
 
       {/* Celestial User & Quota Card */}
       <div className="sidebar-auth-section">
@@ -172,6 +212,7 @@ export function Sidebar({
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectRun(r.id);
+                          onClose?.();
                         }}
                         aria-current={isRunActive ? "true" : undefined}
                       >
@@ -250,6 +291,7 @@ export function Sidebar({
                         onClick={(e) => {
                           e.stopPropagation();
                           if (onSelectReport) onSelectReport(r.id, vault.project_id);
+                          onClose?.();
                         }}
                         aria-current={isReportActive ? "true" : undefined}
                       >
@@ -277,5 +319,6 @@ export function Sidebar({
         )}
       </nav>
     </aside>
+  </>
   );
 }
