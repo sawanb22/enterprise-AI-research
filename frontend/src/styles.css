@@ -7,12 +7,12 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --bg-main: #040711;
-  --bg-sidebar: rgba(6, 11, 26, 0.85);
-  --bg-card: rgba(10, 19, 44, 0.75);
-  --bg-card-hover: rgba(16, 29, 64, 0.88);
-  --border-subtle: rgba(148, 163, 184, 0.12);
-  --border-active: rgba(56, 189, 248, 0.35);
+  --bg-main: #020408;
+  --bg-sidebar: #060a14;
+  --bg-card: #0b1120;
+  --bg-card-hover: #10192e;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-active: rgba(56, 189, 248, 0.4);
   --accent-cyan: #38bdf8;
   --accent-blue: #60a5fa;
   --accent-purple: #a78bfa;
@@ -56,10 +56,10 @@ body::-webkit-scrollbar,
 body {
   margin: 0;
   min-width: 320px;
-  background: radial-gradient(circle at 75% 15%, #0e1e42 0%, transparent 40rem),
-              radial-gradient(circle at 20% 85%, #091733 0%, transparent 35rem),
-              radial-gradient(circle at 50% 50%, #060e22 0%, transparent 60rem),
-              var(--bg-main);
+  background-color: #020408;
+  background: radial-gradient(circle at 80% 10%, #080f22 0%, transparent 45rem),
+              radial-gradient(circle at 15% 90%, #040814 0%, transparent 40rem),
+              #020408;
   color: var(--text-main);
   overflow-x: hidden;
 }
@@ -175,7 +175,29 @@ button {
 }
 
 .sidebar-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin: 0 6px 10px;
+}
+
+.sidebar-heading-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sidebar-section-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 7px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 10px;
+  color: #38bdf8;
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .project-list {
@@ -3624,73 +3646,80 @@ button {
 }
 
 /* ------------------------------------------------------------------------------
-   CELESTIAL 5-STAR QUOTA BADGE
+   ENTERPRISE RESEARCH INQUIRY ALLOWANCE BADGE
    ------------------------------------------------------------------------------ */
 
-.celestial-quota-badge {
+.enterprise-quota-badge {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: rgba(14, 23, 48, 0.75);
-  border: 1px solid rgba(251, 191, 36, 0.22);
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 12px;
+  background: #0b1120;
+  border: 1px solid rgba(56, 189, 248, 0.2);
   border-radius: 10px;
   width: 100%;
   transition: all 0.2s ease;
-  backdrop-filter: blur(8px);
+  cursor: pointer;
 }
 
-.celestial-quota-badge:hover {
-  background: rgba(20, 34, 70, 0.9);
-  border-color: rgba(251, 191, 36, 0.45);
-  box-shadow: 0 0 14px rgba(251, 191, 36, 0.15);
+.enterprise-quota-badge:hover {
+  background: #10192e;
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
-.celestial-quota-badge.exhausted {
-  border-color: rgba(239, 68, 68, 0.3);
-  background: rgba(30, 15, 20, 0.7);
+.enterprise-quota-badge.exhausted {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: #140b0f;
 }
 
-.celestial-stars-row {
+.quota-header-row {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 6px;
+  width: 100%;
 }
 
-.celestial-star-orb {
+.quota-icon {
   font-size: 13px;
+  color: #38bdf8;
   line-height: 1;
+}
+
+.quota-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.quota-label {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+  margin-left: auto;
+}
+
+.quota-segments-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.quota-segment {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
   transition: all 0.2s ease;
 }
 
-.celestial-star-orb.active {
-  color: #fbbf24;
-  text-shadow: 0 0 6px rgba(251, 191, 36, 0.85);
-  animation: star-twinkle 3s infinite ease-in-out alternate;
+.quota-segment.available {
+  background: linear-gradient(90deg, #38bdf8, #60a5fa);
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.4);
 }
 
-.celestial-star-orb.spent {
-  color: rgba(148, 163, 184, 0.25);
-  transform: scale(0.85);
-}
-
-.celestial-quota-text {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.celestial-quota-count {
-  font-size: 12px;
-  font-weight: 700;
-  color: #fbbf24;
-}
-
-.celestial-quota-label {
-  font-size: 10px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.quota-segment.used {
+  background: rgba(148, 163, 184, 0.15);
 }
 
 /* ------------------------------------------------------------------------------

@@ -50,7 +50,7 @@ export function UserProfileMenu() {
         <div className="celestial-user-info">
           <span className="celestial-user-email">{user.email}</span>
           <span className="celestial-user-sub">
-            {remaining}/{maxRuns} Stars
+            {remaining}/{maxRuns} Credits
           </span>
         </div>
         <span className="celestial-chevron">▾</span>
@@ -60,13 +60,13 @@ export function UserProfileMenu() {
         <div className="celestial-user-dropdown">
           <div className="dropdown-header">
             <span className="dropdown-user-email">{user.email}</span>
-            <span className="dropdown-user-role">Explorer Account</span>
+            <span className="dropdown-user-role">Research Account</span>
           </div>
 
           <div className="dropdown-quota-summary">
             <div className="dropdown-quota-header">
-              <span>Lifetime Allowance</span>
-              <span className="quota-pill-count">{remaining} / {maxRuns} Stars</span>
+              <span>Research Allowance</span>
+              <span className="quota-pill-count">{remaining} / {maxRuns} Inquiries</span>
             </div>
             <div className="dropdown-quota-bar">
               <div

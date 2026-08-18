@@ -245,10 +245,10 @@ function MainWorkspace() {
       <section className="workspace" id="main-content">
         <header className="workspace-header">
           <div className="workspace-title-area">
-            <p className="eyebrow">ENTERPRISE RESEARCH LAB · DEEP SPACE COSMOS</p>
+            <p className="eyebrow">ENTERPRISE RESEARCH INTELLIGENCE</p>
             <h1>Evidence before conclusions.</h1>
             <p className="subhead">
-              Plan, source, compare, and trace every answer with auditable provenance across the digital cosmos.
+              Synthesize multi-angle market intelligence and document research with verified source citations.
             </p>
           </div>
 
@@ -272,7 +272,7 @@ function MainWorkspace() {
             {mode === "rag" && (
               <span className="status rag-ready" role="status" aria-label="RAG Engine Active">
                 <span className="dot-status ready" aria-hidden="true" />
-                Document RAG ({documents.filter((d) => d.status === "ready").length} indexed)
+                Knowledge Vault ({documents.filter((d) => d.status === "ready").length} {documents.filter((d) => d.status === "ready").length === 1 ? "Document" : "Documents"})
               </span>
             )}
           </div>
@@ -301,10 +301,9 @@ function MainWorkspace() {
             {!run && (
               <section className="empty-state" aria-label="Getting started">
                 <div className="empty-state-graphic" aria-hidden="true">✦</div>
-                <h2>Explore the Research Horizon</h2>
+                <h2>Start a Research Inquiry</h2>
                 <p>
-                  EvidenceLab executes multi-angle discovery, retrieves authoritative snapshots,
-                  extracts verbatim claims, compares cross-source agreements, and synthesizes verified conclusions.
+                  Execute multi-angle discovery across the live web or synthesize deep insights from your uploaded PDF documents with verifiable source citations.
                 </p>
               </section>
             )}

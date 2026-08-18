@@ -240,8 +240,8 @@ export function QuestionForm({
       {/* Mode Guidance Subtext */}
       <p id="question-hint" className="question-hint">
         {mode === "web"
-          ? "EvidenceLab plans multi-angle queries, retrieves authoritative snapshots, extracts verbatim claims, and traces conclusions back to sources."
-          : "Enterprise RAG performs multi-query vector expansion against 1024-dim pgvector HNSW embeddings, FlashRank cross-encoder reranking, and verbatim citation verification."}
+          ? "Plans multi-angle web queries, extracts verbatim source claims, and synthesizes evidence-backed conclusions."
+          : "Synthesizes grounded executive research reports with page-accurate citations extracted directly from your uploaded documents."}
       </p>
     </form>
   );

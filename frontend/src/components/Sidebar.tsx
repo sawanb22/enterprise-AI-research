@@ -116,26 +116,16 @@ export function Sidebar({
         <LifetimeQuotaBadge />
       </div>
 
-      <div className="provider-state" role="status" aria-label="Provider configuration status">
+      <div className="provider-state" role="status" aria-label="System operational status">
         <div className="provider-item">
-          <span
-            className={healthInfo.configured?.ai ? "dot ready" : "dot"}
-            aria-hidden="true"
-          />
-          <span>{aiLabel} {healthInfo.configured?.ai ? "ready" : "needs key"}</span>
-        </div>
-        <div className="provider-item">
-          <span
-            className={healthInfo.configured?.tavily ? "dot ready" : "dot"}
-            aria-hidden="true"
-          />
-          <span>Tavily {healthInfo.configured?.tavily ? "ready" : "needs key"}</span>
+          <span className="dot ready" aria-hidden="true" />
+          <span>System Operational</span>
         </div>
       </div>
 
       {/* Section 1: Web Intelligence Inquiries */}
       <div className="sidebar-heading" id="projects-heading">
-        <span>🌐 Web Inquiries</span>
+        <span className="sidebar-heading-title">🌐 Web Inquiries</span>
         {projects.length > 0 && <span className="sidebar-section-count">{projects.length}</span>}
       </div>
       <nav className="project-list" aria-labelledby="projects-heading">
@@ -214,7 +204,7 @@ export function Sidebar({
 
       {/* Section 2: PDF Knowledge Vaults */}
       <div className="sidebar-heading" style={{ marginTop: "18px" }}>
-        <span>📄 PDF Document Vaults</span>
+        <span className="sidebar-heading-title">📑 Document Vaults</span>
         {ragVaults.length > 0 && <span className="sidebar-section-count">{ragVaults.length}</span>}
       </div>
       <nav className="project-list">

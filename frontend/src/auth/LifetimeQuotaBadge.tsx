@@ -20,36 +20,35 @@ export function LifetimeQuotaBadge({ compact = false }: { compact?: boolean }) {
   return (
     <button
       type="button"
-      className={`celestial-quota-badge ${isExhausted ? "exhausted" : ""} ${compact ? "compact" : ""}`}
+      className={`enterprise-quota-badge ${isExhausted ? "exhausted" : ""} ${compact ? "compact" : ""}`}
       onClick={handleClick}
       title={
         user
-          ? `Pilot Mission: ${remaining}/${maxRuns} Research Stars Remaining across Web & Document RAG.`
-          : "Sign in to activate your 5 Free Research Stars!"
+          ? `Research Allowance: ${remaining} of ${maxRuns} inquiries remaining.`
+          : "Sign in to activate your 5 free research inquiries."
       }
-      aria-label="Pilot Research Stars Quota"
+      aria-label="Research Allowance Quota"
     >
-      <div className="celestial-stars-row">
+      <div className="quota-header-row">
+        <span className="quota-icon" aria-hidden="true">⚡</span>
+        <span className="quota-count">
+          {user ? `${remaining}/${maxRuns}` : "5/5"}
+        </span>
+        <span className="quota-label">
+          {isExhausted ? "Limit Reached" : "Inquiries Left"}
+        </span>
+      </div>
+
+      <div className="quota-segments-row" aria-hidden="true">
         {Array.from({ length: maxRuns }).map((_, idx) => {
           const isAvailable = idx < remaining;
           return (
             <span
               key={idx}
-              className={`celestial-star-orb ${isAvailable ? "active" : "spent"}`}
-            >
-              ★
-            </span>
+              className={`quota-segment ${isAvailable ? "available" : "used"}`}
+            />
           );
         })}
-      </div>
-
-      <div className="celestial-quota-text">
-        <span className="celestial-quota-count">
-          {user ? `${remaining}/${maxRuns}` : "5/5"}
-        </span>
-        <span className="celestial-quota-label">
-          {isExhausted ? "Limit Reached" : "Research Stars"}
-        </span>
       </div>
     </button>
   );

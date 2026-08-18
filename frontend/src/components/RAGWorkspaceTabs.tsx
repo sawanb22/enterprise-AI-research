@@ -85,7 +85,7 @@ export function RAGWorkspaceTabs({
           onClick={() => onSelectTab("telemetry")}
         >
           <span className="tab-icon" aria-hidden="true">🎯</span>
-          <span>Vector Telemetry</span>
+          <span>Extraction Insights</span>
           {readyDocsCount > 0 && <span className="tab-count-badge green-badge">Active</span>}
         </button>
 
