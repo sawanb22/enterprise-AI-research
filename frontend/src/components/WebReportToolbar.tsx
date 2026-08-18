@@ -21,7 +21,7 @@ export function WebReportToolbar({
 
   const generateMarkdown = () => {
     let md = `# Executive Web Intelligence Briefing: ${run.question}\n\n`;
-    md += `*Generated on ${formatDateTime(run.completed_at || run.started_at)} • ${sources.length} Verified Sources • Engine: ${pretty(run.provider_name)} (${run.model_name})*\n\n`;
+    md += `*Generated on ${formatDateTime(run.completed_at || run.started_at)} • ${sources.length} Verified Sources • Grounded Multi-Source Synthesis*\n\n`;
 
     md += `## Key Findings\n\n`;
     run.conclusions.forEach((c, idx) => {

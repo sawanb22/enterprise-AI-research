@@ -165,7 +165,14 @@ export function Sidebar({
 
       {/* Section 1: Web Intelligence Inquiries */}
       <div className="sidebar-heading" id="projects-heading">
-        <span className="sidebar-heading-title">🌐 Web Inquiries</span>
+        <span className="sidebar-heading-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ display: "inline-block", verticalAlign: "middle", marginRight: "6px" }}>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="2" y1="12" x2="22" y2="12" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+          </svg>
+          Web Inquiries
+        </span>
         {projects.length > 0 && <span className="sidebar-section-count">{projects.length}</span>}
       </div>
       <nav className="project-list" aria-labelledby="projects-heading">
@@ -220,14 +227,11 @@ export function Sidebar({
                           <span className="run-label">Run {runNumber}</span>
                           <span className={`status-dot ${r.status}`} title={r.status} />
                           <span className="run-status-text">{pretty(r.status)}</span>
-                          {canResume && <span className="resume-badge">Resume available</span>}
                         </div>
                         <div className="run-item-bottom">
                           <span className="run-time">{formatDateTime(r.started_at)}</span>
-                          {r.conclusion_count > 0 && (
-                            <span className="run-conclusions-count">
-                              {r.conclusion_count} {r.conclusion_count === 1 ? "conclusion" : "conclusions"}
-                            </span>
+                          {canResume && (
+                            <span className="resume-badge">Resume available</span>
                           )}
                         </div>
                       </button>
@@ -245,7 +249,15 @@ export function Sidebar({
 
       {/* Section 2: PDF Knowledge Vaults */}
       <div className="sidebar-heading" style={{ marginTop: "18px" }}>
-        <span className="sidebar-heading-title">📑 Document Vaults</span>
+        <span className="sidebar-heading-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ display: "inline-block", verticalAlign: "middle", marginRight: "6px" }}>
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+          Document Vaults
+        </span>
         {ragVaults.length > 0 && <span className="sidebar-section-count">{ragVaults.length}</span>}
       </div>
       <nav className="project-list">

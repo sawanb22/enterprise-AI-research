@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "./api";
 import { AuthModal, AuthProvider, QuotaExceededModal, useAuth } from "./auth";
 import { CitationDrawer } from "./components/CitationDrawer";
@@ -14,7 +14,7 @@ import { StarfieldBackground } from "./components/StarfieldBackground";
 import { WebReportToolbar } from "./components/WebReportToolbar";
 import { useRAGData } from "./hooks/useRAGData";
 import { useResearchData } from "./hooks/useResearchData";
-import { formatDateTime, pretty, sanitizeText } from "./utils/textUtils";
+import { durationText, formatDateTime, pretty, sanitizeText } from "./utils/textUtils";
 import { SecureWorkspaceCache } from "./utils/secureStorage";
 
 function MainWorkspace() {
@@ -184,6 +184,21 @@ function MainWorkspace() {
     }
   }, [run?.id, isActiveRun]);
 
+  const isCompleted = run?.status === "completed";
+  const isPlanDone = completedStages.has("planning") || isCompleted;
+  const isPlanActive = run?.status === "planning";
+  const isDiscoverDone = completedStages.has("discovering") || completedStages.has("fetching") || isCompleted;
+  const isDiscoverActive = run?.status === "discovering" || run?.status === "fetching";
+  const isExtractDone = completedStages.has("extracting") || isCompleted;
+  const isExtractActive = run?.status === "extracting";
+  const isSynthesizeDone = completedStages.has("comparing") || completedStages.has("synthesising") || completedStages.has("validating") || isCompleted;
+  const isSynthesizeActive = run?.status === "comparing" || run?.status === "synthesising";
+
+  const runDuration = useMemo(() => {
+    if (!run?.started_at) return "";
+    return durationText(run.started_at, run.completed_at);
+  }, [run?.started_at, run?.completed_at]);
+
   const handleInquirySubmit = async (finalQuestion: string) => {
     if (!user) {
       openAuthModal("signin");
@@ -236,7 +251,7 @@ function MainWorkspace() {
 
         <div className="mobile-header-right">
           <span className="mobile-mode-pill">
-            {mode === "web" ? "🌐 Web" : "📑 RAG"}
+            {mode === "web" ? "Web Intelligence" : "Document RAG"}
           </span>
           <span className={`mobile-status-dot ${connectionStatus}`} title={`System: ${connectionStatus}`} />
         </div>
@@ -345,10 +360,122 @@ function MainWorkspace() {
                   <div className="run-context-info">
                     <p className="eyebrow">RESEARCH INQUIRY</p>
                     <h2>{sanitizeText(run.question)}</h2>
-                    <p className="muted">
-                      Provider: <b>{pretty(run.provider_name)}</b> · Model: <b>{run.model_name}</b> · Started{" "}
-                      {formatDateTime(run.started_at)}
-                    </p>
+                    <div className="run-context-subline">
+                      {/* Progressive Left-to-Right Micro Pipeline Track */}
+                      <div className="micro-pipeline-track" role="list" aria-label="Research execution flow">
+                        <button
+                          type="button"
+                          className={`micro-step-node ${isPlanDone ? "completed" : isPlanActive ? "active" : ""}`}
+                          onClick={() => {
+                            if (!isActiveRun) setWebReportMode("tabs");
+                            setActiveTab("activity");
+                          }}
+                          title="Stage 1: Multi-Angle Query Planning"
+                        >
+                          <span className="micro-step-dot">
+                            {isPlanDone ? (
+                              <svg className="micro-step-svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            ) : (
+                              <span className="micro-step-num">1</span>
+                            )}
+                          </span>
+                          <span className="micro-step-label">Plan</span>
+                        </button>
+
+                        <div className={`micro-step-line ${isDiscoverDone || isDiscoverActive ? "filled" : ""}`} />
+
+                        <button
+                          type="button"
+                          className={`micro-step-node ${isDiscoverDone ? "completed" : isDiscoverActive ? "active" : ""}`}
+                          onClick={() => {
+                            if (!isActiveRun) setWebReportMode("tabs");
+                            setActiveTab("sources");
+                          }}
+                          title="Stage 2: Web Discovery & Ingestion"
+                        >
+                          <span className="micro-step-dot">
+                            {isDiscoverDone ? (
+                              <svg className="micro-step-svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            ) : (
+                              <span className="micro-step-num">2</span>
+                            )}
+                          </span>
+                          <span className="micro-step-label">Discover</span>
+                        </button>
+
+                        <div className={`micro-step-line ${isExtractDone || isExtractActive ? "filled" : ""}`} />
+
+                        <button
+                          type="button"
+                          className={`micro-step-node ${isExtractDone ? "completed" : isExtractActive ? "active" : ""}`}
+                          onClick={() => {
+                            if (!isActiveRun) setWebReportMode("tabs");
+                            setActiveTab("claims");
+                          }}
+                          title="Stage 3: Atomic Claim Extraction & Offsets"
+                        >
+                          <span className="micro-step-dot">
+                            {isExtractDone ? (
+                              <svg className="micro-step-svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            ) : (
+                              <span className="micro-step-num">3</span>
+                            )}
+                          </span>
+                          <span className="micro-step-label">Extract</span>
+                        </button>
+
+                        <div className={`micro-step-line ${isSynthesizeDone || isSynthesizeActive ? "filled" : ""}`} />
+
+                        <button
+                          type="button"
+                          className={`micro-step-node ${isSynthesizeDone ? "completed" : isSynthesizeActive ? "active" : ""}`}
+                          onClick={() => {
+                            if (!isActiveRun) setWebReportMode("tabs");
+                            setActiveTab("conclusions");
+                          }}
+                          title="Stage 4: Synthesis & Verification Gate"
+                        >
+                          <span className="micro-step-dot">
+                            {isSynthesizeDone ? (
+                              <svg className="micro-step-svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            ) : (
+                              <span className="micro-step-num">4</span>
+                            )}
+                          </span>
+                          <span className="micro-step-label">Synthesize</span>
+                        </button>
+
+                        <div className={`micro-step-line ${isCompleted ? "filled" : ""}`} />
+
+                        {/* Verified Grounding Badge Finale */}
+                        <div className={`micro-trust-badge ${isCompleted ? "verified" : isActiveRun ? "in-progress" : ""}`}>
+                          <svg className="micro-trust-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                            <polyline points="9 12 11 14 15 10" />
+                          </svg>
+                          <span>{isCompleted ? "Verified Grounding" : isActiveRun ? "Synthesizing" : "Grounded"}</span>
+                        </div>
+                      </div>
+
+                      {/* Timestamp & Duration */}
+                      <div className="micro-meta-details">
+                        <span className="micro-time">Started {formatDateTime(run.started_at)}</span>
+                        {runDuration && (
+                          <>
+                            <span className="micro-sep">·</span>
+                            <span className="micro-duration">{runDuration}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   <div className="metrics" role="group" aria-label="Research volume metrics">

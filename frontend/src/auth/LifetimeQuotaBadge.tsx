@@ -30,7 +30,9 @@ export function LifetimeQuotaBadge({ compact = false }: { compact?: boolean }) {
       aria-label="Research Allowance Quota"
     >
       <div className="quota-header-row">
-        <span className="quota-icon" aria-hidden="true">⚡</span>
+        <svg className="quota-svg-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true" style={{ display: "inline-block", verticalAlign: "middle" }}>
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        </svg>
         <span className="quota-count">
           {user ? `${remaining}/${maxRuns}` : "5/5"}
         </span>
