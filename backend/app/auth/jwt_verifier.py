@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from typing import Any
 import httpx
@@ -8,6 +9,9 @@ from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
 from ..config import Settings, get_settings
 from .schemas import AuthenticatedUser
+
+if not hasattr(Settings, "environment"):
+    Settings.environment = property(lambda self: os.getenv("ENVIRONMENT", "development"))
 
 logger = logging.getLogger(__name__)
 
@@ -69,17 +73,18 @@ class SupabaseJWTVerifier:
         if cached:
             return cached
 
-        # 2. Test Harness Mock Fallback (for isolated fast unit tests)
-        if clean_token.startswith("mock-user-") or clean_token.startswith("test-token-"):
-            user_id = clean_token.replace("mock-user-", "").replace("test-token-", "")
-            mock_user = AuthenticatedUser(
-                id=f"usr_{user_id}",
-                email=f"{user_id}@example.com",
-                full_name=f"Test User {user_id.capitalize()}",
-                role="authenticated",
-            )
-            _token_cache.set(clean_token, mock_user)
-            return mock_user
+        # 2. Test Harness Mock Fallback (for isolated fast unit tests - gated to development / test)
+        if self.settings.environment.lower() in {"development", "test"}:
+            if clean_token.startswith("mock-user-") or clean_token.startswith("test-token-"):
+                user_id = clean_token.replace("mock-user-", "").replace("test-token-", "")
+                mock_user = AuthenticatedUser(
+                    id=f"usr_{user_id}",
+                    email=f"{user_id}@example.com",
+                    full_name=f"Test User {user_id.capitalize()}",
+                    role="authenticated",
+                )
+                _token_cache.set(clean_token, mock_user)
+                return mock_user
 
         # 3. Local Cryptographic JWT Verification (HS256 & JWKS ES256/RS256)
         try:

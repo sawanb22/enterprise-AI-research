@@ -321,7 +321,7 @@ def get_project(
     project = db.get(ResearchProject, project_id)
     if not project:
         raise HTTPException(404, "Project not found")
-    if user and project.user_id and project.user_id != user.id:
+    if project.user_id and (not user or project.user_id != user.id):
         raise HTTPException(404, "Project not found")
     latest = db.scalar(
         select(ResearchRun)
@@ -342,10 +342,9 @@ def verify_run_access(db: Session, run_id: str, user: AuthenticatedUser | None) 
     run = db.get(ResearchRun, run_id)
     if not run:
         raise HTTPException(404, "Research run not found")
-    if user:
-        project = db.get(ResearchProject, run.project_id)
-        if project and project.user_id and project.user_id != user.id:
-            raise HTTPException(404, "Research run not found")
+    project = db.get(ResearchProject, run.project_id)
+    if project and project.user_id and (not user or project.user_id != user.id):
+        raise HTTPException(404, "Research run not found")
     return run
 
 
@@ -354,12 +353,11 @@ def verify_conclusion_access(db: Session, conclusion_id: str, user: Authenticate
     conclusion = db.get(Conclusion, conclusion_id)
     if not conclusion:
         raise HTTPException(404, "Conclusion not found")
-    if user:
-        run = db.get(ResearchRun, conclusion.run_id)
-        if run:
-            project = db.get(ResearchProject, run.project_id)
-            if project and project.user_id and project.user_id != user.id:
-                raise HTTPException(404, "Conclusion not found")
+    run = db.get(ResearchRun, conclusion.run_id)
+    if run:
+        project = db.get(ResearchProject, run.project_id)
+        if project and project.user_id and (not user or project.user_id != user.id):
+            raise HTTPException(404, "Conclusion not found")
     return conclusion
 
 
@@ -372,7 +370,7 @@ def list_project_runs(
     project = db.get(ResearchProject, project_id)
     if not project:
         raise HTTPException(404, "Project not found")
-    if user and project.user_id and project.user_id != user.id:
+    if project.user_id and (not user or project.user_id != user.id):
         raise HTTPException(404, "Project not found")
     runs = list(
         db.scalars(

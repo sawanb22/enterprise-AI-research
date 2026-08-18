@@ -50,7 +50,7 @@ async def upload_document(
     project = db.get(ResearchProject, project_id)
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    if user and project.user_id and project.user_id != user.id:
+    if project.user_id and (not user or project.user_id != user.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
 
     max_bytes = settings.max_upload_size_mb * 1024 * 1024
@@ -120,7 +120,7 @@ def list_documents(
     project = db.get(ResearchProject, project_id)
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    if user and project.user_id and project.user_id != user.id:
+    if project.user_id and (not user or project.user_id != user.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
 
     docs = doc_service.list_project_documents(project_id, db)
@@ -145,7 +145,7 @@ def get_document_details(
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     project = db.get(ResearchProject, doc.project_id)
-    if user and project and project.user_id and project.user_id != user.id:
+    if project and project.user_id and (not user or project.user_id != user.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
     chunk_count = db.scalar(
@@ -178,7 +178,7 @@ def delete_document(
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     project = db.get(ResearchProject, doc.project_id)
-    if user and project and project.user_id and project.user_id != user.id:
+    if project and project.user_id and (not user or project.user_id != user.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
     success = doc_service.delete_document(document_id, db)

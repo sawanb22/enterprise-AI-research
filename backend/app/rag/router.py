@@ -140,7 +140,7 @@ def list_project_rag_reports(
     project = db.scalar(select(ResearchProject).where(ResearchProject.id == project_id))
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    if user and project.user_id and project.user_id != user.id:
+    if project.user_id and (not user or project.user_id != user.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
 
     reports = list(
@@ -173,7 +173,7 @@ def get_rag_report(
             detail="RAG report not found",
         )
     project = db.scalar(select(ResearchProject).where(ResearchProject.id == report.project_id))
-    if user and project and project.user_id and project.user_id != user.id:
+    if project and project.user_id and (not user or project.user_id != user.id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="RAG report not found",

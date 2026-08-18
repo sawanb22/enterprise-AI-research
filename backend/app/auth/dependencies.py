@@ -1,4 +1,5 @@
 import logging
+import os
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
@@ -8,6 +9,9 @@ from ..database import get_db
 from .jwt_verifier import SupabaseJWTVerifier
 from .schemas import AuthenticatedUser
 from .service import QuotaExceededError, QuotaService
+
+if not hasattr(Settings, "environment"):
+    Settings.environment = property(lambda self: os.getenv("ENVIRONMENT", "development"))
 
 logger = logging.getLogger(__name__)
 security_bearer = HTTPBearer(auto_error=False)
@@ -24,6 +28,9 @@ async def get_current_user(
     Enforce Supabase JWT authentication.
     Resolves AuthenticatedUser from Bearer token or raises HTTP 401.
     """
+    if not isinstance(settings, Settings):
+        settings = get_settings()
+
     token = None
     if bearer:
         token = bearer.credentials
@@ -32,15 +39,16 @@ async def get_current_user(
         if auth_header.lower().startswith("bearer "):
             token = auth_header[7:].strip()
 
-    # Also support custom header for testing: X-User-Id
-    test_user_id = request.headers.get("X-Test-User-Id")
-    if test_user_id and not token:
-        return AuthenticatedUser(
-            id=test_user_id,
-            email=f"{test_user_id}@test.local",
-            full_name=f"User {test_user_id}",
-            role="authenticated",
-        )
+    # Also support custom header for testing: X-Test-User-Id (gated to development / test)
+    if settings.environment.lower() in {"development", "test"}:
+        test_user_id = request.headers.get("X-Test-User-Id")
+        if test_user_id and not token:
+            return AuthenticatedUser(
+                id=test_user_id,
+                email=f"{test_user_id}@test.local",
+                full_name=f"User {test_user_id}",
+                role="authenticated",
+            )
 
     if not token:
         raise HTTPException(
@@ -63,10 +71,11 @@ async def get_current_user(
 async def get_optional_user(
     request: Request,
     bearer: HTTPAuthorizationCredentials | None = Depends(security_bearer),
+    settings: Settings = Depends(get_settings),
 ) -> AuthenticatedUser | None:
     """Resolve AuthenticatedUser if token present, or None if unauthenticated."""
     try:
-        return await get_current_user(request, bearer)
+        return await get_current_user(request, bearer, settings)
     except HTTPException:
         return None
 
