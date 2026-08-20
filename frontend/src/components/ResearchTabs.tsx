@@ -45,7 +45,11 @@ export function ResearchTabs({
           className={`tab-btn ${activeTab === "conclusions" ? "active" : ""}`}
           onClick={() => onSelectTab("conclusions")}
         >
-          <span className="tab-icon" aria-hidden="true">💡</span>
+          <svg className="tab-icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
           <span>Conclusions</span>
           {run.conclusions.length > 0 && (
             <span className="tab-count-badge">{run.conclusions.length}</span>
@@ -61,7 +65,11 @@ export function ResearchTabs({
           className={`tab-btn ${activeTab === "sources" ? "active" : ""}`}
           onClick={() => onSelectTab("sources")}
         >
-          <span className="tab-icon" aria-hidden="true">🌐</span>
+          <svg className="tab-icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="2" y1="12" x2="22" y2="12" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+          </svg>
           <span>Sources</span>
           {sources.length > 0 && (
             <span className="tab-count-badge">{sources.length}</span>
@@ -77,7 +85,12 @@ export function ResearchTabs({
           className={`tab-btn ${activeTab === "claims" ? "active" : ""}`}
           onClick={() => onSelectTab("claims")}
         >
-          <span className="tab-icon" aria-hidden="true">📑</span>
+          <svg className="tab-icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
           <span>Claims & Comparisons</span>
           {claims.length > 0 && (
             <span className="tab-count-badge">{claims.length}</span>
@@ -93,7 +106,9 @@ export function ResearchTabs({
           className={`tab-btn ${activeTab === "activity" ? "active" : ""}`}
           onClick={() => onSelectTab("activity")}
         >
-          <span className="tab-icon" aria-hidden="true">⚡</span>
+          <svg className="tab-icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
           <span>Pipeline Activity</span>
           {events.length > 0 && (
             <span className="tab-count-badge">{events.length}</span>

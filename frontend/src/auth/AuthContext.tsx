@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import type { User, Session } from "@supabase/supabase-js";
+import posthog from "posthog-js";
 import { supabase } from "./supabase";
 import type { AuthContextValue, UserQuota } from "./types";
 import { setAuthTokenGetter, api } from "../api";
@@ -19,6 +20,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setAuthTokenGetter(() => session?.access_token ?? null);
   }, [session]);
+
+  // Sync PostHog user identification
+  useEffect(() => {
+    if (user?.id) {
+      posthog.identify(user.id, {
+        email: user.email,
+      });
+    }
+  }, [user]);
 
   const refreshQuota = useCallback(async (): Promise<UserQuota | null> => {
     if (!session?.access_token) {
@@ -130,6 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     SecureWorkspaceCache.purgeAll();
+    posthog.reset();
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);

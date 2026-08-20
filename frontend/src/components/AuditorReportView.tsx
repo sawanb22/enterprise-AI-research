@@ -65,7 +65,10 @@ export function AuditorReportView({
                           onClick={() => onOpenCitation(cit, displayIdx, allCitations.length)}
                           title={`Inspect source quote on Page ${cit.page_number} of ${cit.document_filename}`}
                         >
-                          <span className="pill-doc-icon" aria-hidden="true">📄</span>
+                          <svg className="pill-doc-svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                          </svg>
                           <span className="pill-filename">{cit.document_filename}</span>
                           <span className="pill-page">p.{cit.page_number}</span>
                         </button>

@@ -130,7 +130,7 @@ export function DocumentUpload({
         </div>
         {isQuotaFull && (
           <p className="pilot-quota-warning">
-            🔒 Pilot project limit reached ({maxPagesLimit}/{maxPagesLimit} pages). Remove an existing document from the repository to free up ingestion capacity.
+            ✦ Pilot project limit reached ({maxPagesLimit}/{maxPagesLimit} pages). Remove an existing document from the repository to free up ingestion capacity.
           </p>
         )}
       </div>

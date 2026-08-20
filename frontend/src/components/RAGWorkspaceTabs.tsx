@@ -56,7 +56,12 @@ export function RAGWorkspaceTabs({
           className={`tab-btn ${activeTab === "report" ? "active" : ""}`}
           onClick={() => onSelectTab("report")}
         >
-          <span className="tab-icon" aria-hidden="true">📊</span>
+          <svg className="tab-icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
           <span>Grounded Report</span>
           {report && <span className="tab-count-badge">{report.sections.length} sections</span>}
         </button>
@@ -70,7 +75,10 @@ export function RAGWorkspaceTabs({
           className={`tab-btn ${activeTab === "vault" ? "active" : ""}`}
           onClick={() => onSelectTab("vault")}
         >
-          <span className="tab-icon" aria-hidden="true">📚</span>
+          <svg className="tab-icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+          </svg>
           <span>Knowledge Vault</span>
           <span className="tab-count-badge">{documents.length}</span>
         </button>
@@ -84,7 +92,11 @@ export function RAGWorkspaceTabs({
           className={`tab-btn ${activeTab === "telemetry" ? "active" : ""}`}
           onClick={() => onSelectTab("telemetry")}
         >
-          <span className="tab-icon" aria-hidden="true">🎯</span>
+          <svg className="tab-icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <circle cx="12" cy="12" r="6" />
+            <circle cx="12" cy="12" r="2" />
+          </svg>
           <span>Extraction Insights</span>
           {readyDocsCount > 0 && <span className="tab-count-badge green-badge">Active</span>}
         </button>
@@ -98,7 +110,10 @@ export function RAGWorkspaceTabs({
           className={`tab-btn ${activeTab === "history" ? "active" : ""}`}
           onClick={() => onSelectTab("history")}
         >
-          <span className="tab-icon" aria-hidden="true">⏱</span>
+          <svg className="tab-icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
           <span>Report Archive</span>
           {pastReports.length > 0 && <span className="tab-count-badge">{pastReports.length}</span>}
         </button>
@@ -118,7 +133,7 @@ export function RAGWorkspaceTabs({
               <RAGReportView report={report} onOpenCitation={onOpenCitation} />
             ) : (
               <div className="rag-empty-report-state">
-                <div className="empty-graphic" aria-hidden="true">📑</div>
+                <div className="empty-graphic" aria-hidden="true">✦</div>
                 <h3>No RAG Report Generated Yet</h3>
                 <p>
                   {readyDocsCount > 0

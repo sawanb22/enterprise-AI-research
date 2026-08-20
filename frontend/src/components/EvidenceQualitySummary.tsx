@@ -129,7 +129,11 @@ export function EvidenceQualitySummary({
 
       <div className="quality-signals-grid">
         <div className="quality-signal-item">
-          <span className="signal-icon" aria-hidden="true">🌐</span>
+          <svg className="signal-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="2" y1="12" x2="22" y2="12" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+          </svg>
           <div className="signal-content">
             <span className="signal-title">Source Coverage</span>
             <strong className="signal-value">{quality.coverageText}</strong>
@@ -137,7 +141,10 @@ export function EvidenceQualitySummary({
         </div>
 
         <div className="quality-signal-item">
-          <span className="signal-icon" aria-hidden="true">⚖️</span>
+          <svg className="signal-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            <polyline points="9 12 11 14 15 10" />
+          </svg>
           <div className="signal-content">
             <span className="signal-title">Evidence Agreement</span>
             <strong className="signal-value">{quality.agreementText}</strong>
@@ -145,7 +152,10 @@ export function EvidenceQualitySummary({
         </div>
 
         <div className="quality-signal-item">
-          <span className="signal-icon" aria-hidden="true">⏱️</span>
+          <svg className="signal-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
           <div className="signal-content">
             <span className="signal-title">Data Freshness</span>
             <strong className="signal-value">{quality.freshnessText}</strong>
@@ -153,7 +163,10 @@ export function EvidenceQualitySummary({
         </div>
 
         <div className="quality-signal-item">
-          <span className="signal-icon" aria-hidden="true">🔍</span>
+          <svg className="signal-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
           <div className="signal-content">
             <span className="signal-title">Triangulation & Gaps</span>
             <strong className="signal-value">{quality.gapsText}</strong>

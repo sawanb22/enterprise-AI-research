@@ -86,6 +86,8 @@ ALLOWED_ORIGINS=http://localhost:5173
 VITE_API_URL=https://<your-railway-backend-url>/api/v1
 VITE_SUPABASE_URL=https://[project-ref].supabase.co
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_POSTHOG_PROJECT_TOKEN=your_posthog_project_token
+VITE_POSTHOG_HOST=https://us.i.posthog.com
 ```
 
 5. Click **Deploy**.
